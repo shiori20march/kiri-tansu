@@ -275,9 +275,7 @@ function convertSize(val,from,to){if(!val||from===to)return val||"";return from=
 // ── Supabaseストレージヘルパー ──────────────────────────────
 
 async function loadAllItems() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-  const { data, error } = await supabase.from("items").select("*").eq("user_id", user.id).order("id");
+  const { data, error } = await supabase.from("items").select("*").order("id");
   if (error) { console.error(error); return []; }
   return (data||[]).map(row => ({
     id: row.id,
@@ -321,9 +319,7 @@ async function deleteItemById(id) {
 }
 
 async function loadCoords() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-  const { data, error } = await supabase.from("coords").select("*").eq("user_id", user.id).order("id");
+  const { data, error } = await supabase.from("coords").select("*").order("id");
   if (error) { console.error(error); return []; }
   return (data||[]).map(row => ({
     id: row.id,
@@ -368,9 +364,7 @@ async function deleteCoordById(id) {
 }
 
 async function loadWearHistory() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-  const { data, error } = await supabase.from("wear_history").select("*").eq("user_id", user.id).order("id");
+  const { data, error } = await supabase.from("wear_history").select("*").order("id");
   if (error) { console.error(error); return []; }
   return (data||[]).map(row => ({
     id: row.id,
@@ -1284,9 +1278,11 @@ export default function App() {
     const id = editId !== null ? editId : Date.now();
     const item={...form,id,sizes:formSizes,sizeUnit:formSizeUnit};
     await saveOneItem(item, user.id);
-    // DBから再読み込みして確実に最新状態にする（重複防止）
-    const latest = await loadAllItems();
-    setItems(latest);
+    if(editId!==null){
+      setItems(its=>its.map(it=>it.id===editId?item:it));
+    } else {
+      setItems(its=>[...its, item]);
+    }
     setEditId(null); setForm(defaultForm); setFormSizes({}); setFormSizeUnit("cm"); setTab("db");
   };
 

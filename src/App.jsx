@@ -1229,29 +1229,39 @@ export default function App() {
   const [wearHistoryModal,setWearHistoryModal]=useState(null);
   const [setsuki] = useState(()=>getRandomSetsuki());
 
-  // ── 認証状態の監視 ──
+  // ── 認証状態の監視＋データ読み込み（1回だけ実行） ──
   useEffect(()=>{
-    supabase.auth.getSession().then(({data:{session}})=>{
-      setUser(session?.user ?? null);
-    });
-    const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=>{
-      setUser(session?.user ?? null);
-    });
-    return ()=>subscription.unsubscribe();
-  },[]);
+    let initialized = false;
 
-  // ── データ読み込み（ログイン後） ──
-  useEffect(()=>{
-    if(!user) { setLoading(false); return; }
-    (async()=>{
+    const loadData = async (u) => {
+      if (!u) { setLoading(false); return; }
       setLoading(true);
       const its=await loadAllItems(); setItems(its);
       const cs=await loadCoords(); setSavedCoords(cs);
       const wh=await loadWearHistory(); setWearHistory(wh);
       try{const raw=lsGet("kimono_profile");if(raw){const p=JSON.parse(raw);setProfile(p);setProfileSizes(p.sizes||{});setProfileSizeUnit(p.sizeUnit||"cm");}}catch{}
       setLoading(false);
-    })();
-  },[user]);
+    };
+
+    // 初回セッション取得
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const u = session?.user ?? null;
+      setUser(u);
+      initialized = true;
+      loadData(u);
+    });
+
+    // 以降の認証変化を監視（ログイン・ログアウト時のみ）
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=>{
+      if (!initialized) return; // 初回はgetSessionで処理済みなのでスキップ
+      const u = session?.user ?? null;
+      setUser(u);
+      if (_event === "SIGNED_IN" || _event === "SIGNED_OUT") {
+        loadData(u);
+      }
+    });
+    return ()=>subscription.unsubscribe();
+  },[]);
 
   // ── 認証処理 ──
   const handleLogin = async () => {

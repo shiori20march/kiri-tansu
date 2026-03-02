@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const ITEM_CATEGORIES = ["着物","帯","小物","上着"];
+const ITEM_CATEGORIES = ["着物","帯","帯締め","帯揚げ","帯留","小物","上着"];
 const KIMONO_TYPES = ["振袖","訪問着","付け下げ","色無地","小紋","紬","浴衣","留袖","その他"];
 const OBI_TYPES = ["袋帯","名古屋帯","半幅帯","兵児帯","その他"];
-const KOMON_TYPES = ["帯締め","帯揚げ","草履","バッグ","半衿","重ね衿","その他"];
+const OBIJIME_TYPES = ["丸組","平組","丸ぐけ","三分紐","細組","その他"];
+const OBIAGE_TYPES = ["縮緬","絞り","綸子","絽","紗","その他"];
+const OBIDOM_TYPES = ["七宝","花","蝶","鳥","幾何学","アンティーク","その他"];
+const KOMON_TYPES = ["草履","バッグ","半衿","重ね衿","その他"];
 const UWAGI_TYPES = ["羽織","道行","道中着","チリ除けコート","コート","スカーフ","その他"];
 const SEASONS = ["袷","単衣","薄物","その他"];
 const KIMONO_SIZE_FIELDS = ["身丈","裄丈","袖丈","前幅","後ろ幅"];
@@ -138,12 +141,125 @@ const SETSUKI_LIST = [
 
 function getTodaySetsuki() {
   const now=new Date(), m=now.getMonth()+1, d=now.getDate();
-  let cur=SETSUKI_LIST[SETSUKI_LIST.length-1];
+  let curIdx=SETSUKI_LIST.length-1;
   for (let i=0;i<SETSUKI_LIST.length;i++) {
     const s=SETSUKI_LIST[i];
-    if(m>s.month||(m===s.month&&d>=s.day)) cur=s; else break;
+    if(m>s.month||(m===s.month&&d>=s.day)) curIdx=i; else break;
   }
-  return cur;
+  return curIdx;
+}
+
+// 現在の節気インデックスを基準にランダム（同節気内の別フレーズ感を出すため、
+// 前後1節気の範囲でランダムに選ぶ）
+// 各節気に複数バリエーションを追加定義（開くたびにランダム選択）
+const SETSUKI_VARIATIONS = {
+  "小寒": [
+    {flower:"寒梅", greeting:"厳寒の候、寒さもひとしお身にしみる頃となりました。", pattern:"松・竹・梅・雪輪"},
+    {flower:"水仙", greeting:"寒の入りを迎え、清澄な空気の中に春の予感を感じます。", pattern:"水仙・氷菊・松竹梅"},
+  ],
+  "大寒": [
+    {flower:"蝋梅・福寿草", greeting:"大寒の候、一年で最も寒い時期を迎えております。", pattern:"雪持ち柳・椿・雪輪"},
+    {flower:"蝋梅", greeting:"寒気凛冽の折、蝋梅の香りに春の兆しを感じます。", pattern:"梅・雪持ち松・宝尽くし"},
+  ],
+  "立春": [
+    {flower:"梅・水仙", greeting:"立春の候、春の訪れを感じる季節となりました。", pattern:"梅・松竹梅・春霞"},
+    {flower:"福寿草", greeting:"春立つとは名ばかりの寒さですが、草木が芽吹き始める頃です。", pattern:"梅・春霞・蝶"},
+  ],
+  "雨水": [
+    {flower:"菜の花・猫柳", greeting:"雨水の候、雪も雨へと変わり始める頃となりました。", pattern:"梅・菜の花・春霞"},
+    {flower:"菜の花", greeting:"春雨がそっと大地を潤し始める頃となりました。", pattern:"春草・水仙・鶯"},
+  ],
+  "啓蟄": [
+    {flower:"木蓮・タンポポ", greeting:"啓蟄の候、虫も目覚める春めいた季節となりました。", pattern:"蝶・桜・春草"},
+    {flower:"土筆・菫", greeting:"土の中の虫も目を覚ます、春めいた季節です。", pattern:"蝶・土筆・霞"},
+  ],
+  "春分": [
+    {flower:"桜・春蘭", greeting:"春分の候、春光うららかな季節となりました。", pattern:"桜・蝶・貝合わせ"},
+    {flower:"桜", greeting:"昼と夜の長さが等しくなり、いよいよ春本番です。", pattern:"桜・流水・鞠"},
+  ],
+  "清明": [
+    {flower:"桜・山吹", greeting:"清明の候、花々が一斉に咲き誇る季節となりました。", pattern:"藤・桜吹雪・流水"},
+    {flower:"山吹・躑躅", greeting:"清らかで明るい春の気に満ちた頃となりました。", pattern:"山吹・桜吹雪・蝶"},
+  ],
+  "穀雨": [
+    {flower:"藤・牡丹", greeting:"穀雨の候、春の雨に万物が潤う季節となりました。", pattern:"藤・牡丹・鞠"},
+    {flower:"藤", greeting:"春雨が穀物を育てる恵みの季節を迎えました。", pattern:"藤・青海波・熨斗"},
+  ],
+  "立夏": [
+    {flower:"菖蒲・藤", greeting:"立夏の候、青葉若葉の清々しい季節となりました。", pattern:"菖蒲・葵・紗綾形"},
+    {flower:"卯の花", greeting:"暦の上では夏を迎え、若葉の薫りが心地よい季節です。", pattern:"菖蒲・流水・鱗"},
+  ],
+  "小満": [
+    {flower:"卯の花・撫子", greeting:"小満の候、草木が生い茂る季節となりました。", pattern:"撫子・麻の葉・絽の単衣"},
+    {flower:"杜若", greeting:"万物が満ち足りる小満の頃、自然の豊かさを感じます。", pattern:"杜若・流水・麻の葉"},
+  ],
+  "芒種": [
+    {flower:"紫陽花・花菖蒲", greeting:"芒種の候、梅雨の季節を迎えております。", pattern:"紫陽花・流水・柳"},
+    {flower:"紫陽花", greeting:"雨音に風情を感じる、梅雨の季節となりました。", pattern:"雨・柳・紫陽花・流水"},
+  ],
+  "夏至": [
+    {flower:"紫陽花・山百合", greeting:"夏至の候、一年で昼の最も長い季節となりました。", pattern:"朝顔・金魚・流水"},
+    {flower:"半夏生", greeting:"一年で最も日の長い夏至を迎えました。", pattern:"流水・青海波・朝顔"},
+  ],
+  "小暑": [
+    {flower:"朝顔・向日葵", greeting:"小暑の候、暑さが日増しに厳しくなってまいりました。", pattern:"朝顔・花火・波"},
+    {flower:"睡蓮", greeting:"本格的な夏の暑さが始まる頃となりました。", pattern:"金魚・波・花火・朝顔"},
+  ],
+  "大暑": [
+    {flower:"向日葵・蓮", greeting:"大暑の候、酷暑の毎日が続いております。", pattern:"蓮・金魚・花火・麻の葉"},
+    {flower:"蓮", greeting:"一年で最も暑い大暑の頃、涼を求める装いで。", pattern:"青海波・氷・流水・蓮"},
+  ],
+  "立秋": [
+    {flower:"桔梗・萩", greeting:"立秋の候、暦の上では秋を迎えました。", pattern:"桔梗・萩・秋草"},
+    {flower:"桔梗", greeting:"残暑厳しい折ですが、暦の上では秋となりました。", pattern:"秋草・桔梗・流水"},
+  ],
+  "処暑": [
+    {flower:"葛・秋桜", greeting:"処暑の候、暑さも峠を越した頃となりました。", pattern:"萩・桔梗・秋の七草"},
+    {flower:"芙蓉", greeting:"朝夕に秋の涼しさを感じるようになった頃です。", pattern:"秋桜・萩・野菊"},
+  ],
+  "白露": [
+    {flower:"萩・彼岸花", greeting:"白露の候、朝夕の涼しさが感じられる季節となりました。", pattern:"菊・紅葉・秋草"},
+    {flower:"白萩", greeting:"草木に白露が宿り、秋の深まりを感じます。", pattern:"菊・雁・秋の七草"},
+  ],
+  "秋分": [
+    {flower:"彼岸花・竜胆", greeting:"秋分の候、秋も深まり色づく季節となりました。", pattern:"菊・紅葉・楓"},
+    {flower:"秋桜", greeting:"昼と夜が等しくなり、秋の静けさが心に沁みます。", pattern:"紅葉・楓・松虫草"},
+  ],
+  "寒露": [
+    {flower:"菊・コスモス", greeting:"寒露の候、秋の深まりを肌で感じる季節となりました。", pattern:"菊・紅葉・鹿"},
+    {flower:"龍胆", greeting:"冷たい露が草木に宿る頃、秋が深まってまいりました。", pattern:"菊・枯れ野・雁"},
+  ],
+  "霜降": [
+    {flower:"菊・山茶花", greeting:"霜降の候、朝夕はめっきり冷え込む季節となりました。", pattern:"菊・紅葉・枯れ野"},
+    {flower:"菊", greeting:"霜が降り始め、木々が美しく色づく季節となりました。", pattern:"紅葉・菊・市松"},
+  ],
+  "立冬": [
+    {flower:"山茶花・茶の花", greeting:"立冬の候、暦の上では冬を迎えました。", pattern:"椿・松・吉祥文様"},
+    {flower:"茶の花", greeting:"冬の扉が開く頃、凛とした空気に心が引き締まります。", pattern:"松・吉祥・七宝"},
+  ],
+  "小雪": [
+    {flower:"山茶花・南天", greeting:"小雪の候、北の地方では雪の便りも届く頃となりました。", pattern:"雪輪・松・椿"},
+    {flower:"南天", greeting:"小さな雪が舞い始め、冬の深まりを感じます。", pattern:"雪持ち柳・椿・松"},
+  ],
+  "大雪": [
+    {flower:"寒椿・南天", greeting:"大雪の候、山々も白く雪化粧する季節となりました。", pattern:"雪持ち松・椿・松竹梅"},
+    {flower:"寒椿", greeting:"雪が本格的に降り積もる頃となりました。", pattern:"雪輪・雪持ち松・吉祥"},
+  ],
+  "冬至": [
+    {flower:"寒椿・蝋梅", greeting:"冬至の候、一年で最も夜が長い季節となりました。", pattern:"雪輪・松竹梅・宝尽くし"},
+    {flower:"蝋梅", greeting:"冬至を境に陽が戻り始めます。一陽来復の節目です。", pattern:"松竹梅・宝尽くし・鶴亀"},
+  ],
+};
+
+function getRandomSetsuki() {
+  const curIdx = getTodaySetsuki();
+  const base = SETSUKI_LIST[curIdx];
+  const variations = SETSUKI_VARIATIONS[base.name];
+  if (variations && variations.length > 0) {
+    const v = variations[Math.floor(Math.random() * variations.length)];
+    return { ...base, ...v };
+  }
+  return base;
 }
 
 const kujiToCm=v=>v?String(Math.round(parseFloat(v)*37.88/10*10)/10):"";
@@ -597,6 +713,7 @@ function AddForm({form,setForm,formSizes,setFormSizes,formSizeUnit,setFormSizeUn
   const [showFabricModal,setShowFabricModal]=useState(false);
   const isKimono=form.category==="着物";
   const isObi=form.category==="帯";
+  const isObiAcc=form.category==="帯締め"||form.category==="帯揚げ"||form.category==="帯留";
   const showPatternSelect=isKimono||isObi;
   const currentPattern=KIMONO_PATTERNS.find(p=>p.name===form.pattern);
   const currentFabric=isObi
@@ -703,20 +820,59 @@ function AddForm({form,setForm,formSizes,setFormSizes,formSizeUnit,setFormSizeUn
   );
 }
 
-// ── CoordVisual ──────────────────────────────────────────────
+// ── CoordVisual（帯まわり対応版） ───────────────────────────
 function CoordVisual({coord}) {
-  const {kimono,obi,komonoList,uwagi}=coord;
+  const {kimono,obi,komonoList,uwagi,obijime,obiage,obidom}=coord;
+  const hasAny = kimono||obi||obijime||obiage||obidom||(komonoList&&komonoList.length>0);
   return (
     <div style={{position:"relative",width:"100%",paddingTop:"150%",borderRadius:12,overflow:"hidden",background:"#1a1008",boxShadow:"0 4px 20px rgba(0,0,0,0.4)"}}>
       <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"30px 0 48px"}}>
         <div style={{position:"relative",width:"44%",height:"100%",borderRadius:6,overflow:"hidden",boxShadow:"0 4px 16px rgba(0,0,0,0.6)",background:"#3a2010"}}>
+          {/* 着物 */}
           {kimono?.photo?<img src={kimono.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,opacity:0.25}}>👘</div>}
+          {/* 上着 */}
           {uwagi?.photo&&<div style={{position:"absolute",inset:0}}><img src={uwagi.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.65,mixBlendMode:"multiply"}}/></div>}
-          <div style={{position:"absolute",left:0,right:0,top:"40%",height:"24%",overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.7)"}}>
-            {obi?.photo?<img src={obi.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",background:"rgba(200,168,130,0.55)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"#fff"}}>🎀</div>}
+          {/* 帯エリア: top40%〜height24% */}
+          <div style={{position:"absolute",left:0,right:0,top:"40%",height:"24%",overflow:"visible"}}>
+            {/* 帯本体 */}
+            <div style={{position:"absolute",inset:0,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.7)"}}>
+              {obi?.photo?<img src={obi.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",background:"rgba(200,168,130,0.55)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"#fff"}}>🎀</div>}
+            </div>
+            {/* 帯揚げ: 帯の上部に帯幅の20%の高さ */}
+            {obiage&&(
+              <div style={{position:"absolute",left:0,right:0,top:"-20%",height:"20%",overflow:"hidden",zIndex:3}}>
+                {obiage.photo
+                  ? <img src={obiage.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.92}}/>
+                  : <div style={{width:"100%",height:"100%",background:obiage.color?"":"rgba(255,160,120,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <div style={{width:"100%",height:"100%",background:obiage.color?`${obiage.color}bb`:"rgba(255,200,160,0.75)"}}/>
+                    </div>
+                }
+              </div>
+            )}
+            {/* 帯締め: 帯の中央に帯高さの10% */}
+            {obijime&&(
+              <div style={{position:"absolute",left:0,right:0,top:"45%",height:"10%",zIndex:4,overflow:"hidden"}}>
+                {obijime.photo
+                  ? <img src={obijime.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  : <div style={{width:"100%",height:"100%",background:obijime.color?`${obijime.color}dd`:"rgba(180,100,60,0.85)",boxShadow:"0 1px 4px rgba(0,0,0,0.4)"}}/>
+                }
+                {/* 帯留: 帯締めの中央に小さな正方形(帯締め高さの2倍) */}
+                {obidom&&(
+                  <div style={{position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:"18%",paddingTop:"20%",zIndex:5,overflow:"hidden",borderRadius:2,boxShadow:"0 2px 6px rgba(0,0,0,0.5)"}}>
+                    <div style={{position:"absolute",inset:0}}>
+                      {obidom.photo
+                        ? <img src={obidom.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                        : <div style={{width:"100%",height:"100%",background:obidom.color?`${obidom.color}ee`:"rgba(220,180,80,0.95)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>✦</div>
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-        {komonoList.length>0&&(
+        {/* 小物サムネイル */}
+        {komonoList&&komonoList.length>0&&(
           <div style={{position:"absolute",bottom:8,left:0,right:0,display:"flex",justifyContent:"center",gap:8,flexWrap:"wrap",padding:"0 12px"}}>
             {komonoList.slice(0,6).map((k,i)=>(
               <div key={i} style={{width:40,height:40,borderRadius:8,overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.2)",background:"rgba(40,20,10,0.7)",flexShrink:0}}>
@@ -726,8 +882,90 @@ function CoordVisual({coord}) {
           </div>
         )}
         {kimono&&<div style={{position:"absolute",top:8,left:0,right:0,textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.7)",textShadow:"0 1px 3px rgba(0,0,0,0.8)"}}>{kimono.name}{obi?` × ${obi.name}`:""}</div>}
-        {!kimono&&!obi&&komonoList.length===0&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.25)",fontSize:14,textAlign:"center",padding:20}}>着物・帯・小物を<br/>選んでください</div>}
+        {!hasAny&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.25)",fontSize:14,textAlign:"center",padding:20}}>着物・帯・小物を<br/>選んでください</div>}
       </div>
+    </div>
+  );
+}
+
+// ── コーデ画面アイテム選択コンポーネント（色・季節フィルター付き） ──
+function CoordItemFilter({items, coord, coordStep, setCoord, C}) {
+  const [colorFilter, setColorFilter] = useState("");
+  const [seasonFilter, setSeasonFilter] = useState("すべて");
+
+  const filtered = items.filter(it => {
+    const colorOk = !colorFilter || (it.color && it.color.includes(colorFilter));
+    const seasonOk = seasonFilter === "すべて" || it.season === seasonFilter;
+    return colorOk && seasonOk;
+  });
+
+  const isMulti = coordStep === "komono" || coordStep === "obiacc";
+  const getSelected = (item) => {
+    if (coordStep === "komono") return coord.komonoList.some(k => k.id === item.id);
+    if (coordStep === "obiacc") {
+      if (item.category === "帯締め") return coord.obijime?.id === item.id;
+      if (item.category === "帯揚げ") return coord.obiage?.id === item.id;
+      if (item.category === "帯留") return coord.obidom?.id === item.id;
+    }
+    return coord[coordStep]?.id === item.id;
+  };
+  const handleToggle = (item) => {
+    if (coordStep === "komono") {
+      const sel = coord.komonoList.some(k => k.id === item.id);
+      setCoord(cv => ({...cv, komonoList: sel ? cv.komonoList.filter(k=>k.id!==item.id) : [...cv.komonoList, item]}));
+    } else if (coordStep === "obiacc") {
+      if (item.category === "帯締め") setCoord(cv => ({...cv, obijime: cv.obijime?.id === item.id ? null : item}));
+      else if (item.category === "帯揚げ") setCoord(cv => ({...cv, obiage: cv.obiage?.id === item.id ? null : item}));
+      else if (item.category === "帯留") setCoord(cv => ({...cv, obidom: cv.obidom?.id === item.id ? null : item}));
+    } else {
+      const sel = coord[coordStep]?.id === item.id;
+      setCoord(cv => ({...cv, [coordStep]: sel ? null : item}));
+    }
+  };
+
+  const catLabel = {"帯締め":"🪢","帯揚げ":"🌸","帯留":"✦"};
+
+  return (
+    <div>
+      {/* フィルターUI */}
+      <div style={{background:"#fdf8f2",borderRadius:10,padding:"8px 12px",marginBottom:10,border:"1px solid #eddcc8"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+          <span style={{fontSize:12,color:"#b89a7a",flexShrink:0}}>🎨 色</span>
+          <input type="text" value={colorFilter} onChange={e=>setColorFilter(e.target.value)}
+            placeholder="例：白、藤色…"
+            style={{flex:1,padding:"5px 9px",borderRadius:16,border:"1px solid #c8a882",fontSize:13,color:"#4a3020"}}/>
+          {colorFilter && <button onClick={()=>setColorFilter("")} style={{border:"none",background:"transparent",color:"#b89a7a",cursor:"pointer",fontSize:14}}>✕</button>}
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+          {["すべて","袷","単衣","薄物","その他"].map(s=>(
+            <button key={s} onClick={()=>setSeasonFilter(s)}
+              style={{padding:"3px 10px",borderRadius:16,border:`1px solid ${seasonFilter===s?"#8b5e3c":"#ddd"}`,background:seasonFilter===s?"#8b5e3c":"transparent",color:seasonFilter===s?"#fff":"#7a4f2e",fontSize:12,cursor:"pointer"}}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      {filtered.length===0 && <div style={{color:"#b89a7a",fontSize:14,textAlign:"center",padding:16}}>該当するアイテムがありません</div>}
+      {filtered.map(item => {
+        const selected = getSelected(item);
+        return (
+          <div key={item.id} onClick={()=>handleToggle(item)}
+            style={{display:"flex",gap:10,padding:10,borderRadius:8,marginBottom:8,background:selected?"#f0dfc8":C.card,border:`2px solid ${selected?C.accent:"#eddcc8"}`,cursor:"pointer"}}>
+            <div style={{width:52,height:52,borderRadius:6,overflow:"hidden",background:"#f0e0cc",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {item.photo?<img src={item.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:22}}>{catLabel[item.category]||"👘"}</span>}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                <span style={{fontSize:11,background:"#f0e0cc",borderRadius:8,padding:"1px 7px",color:"#7a4f2e"}}>{item.category}</span>
+                {item.color && <span style={{fontSize:11,color:"#b89a7a"}}>{item.color}</span>}
+              </div>
+              <div style={{fontWeight:"bold",fontSize:15,color:C.header}}>{item.name}</div>
+              <div style={{fontSize:13,color:"#8b6a50"}}>{item.type}・{item.season}</div>
+            </div>
+            {selected&&<span style={{color:C.accent,fontSize:20,alignSelf:"center"}}>✓</span>}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -922,7 +1160,7 @@ function CoordTagFilter({ activeTag, setActiveTag }) {
 // ── Main ────────────────────────────────────────────────────
 const defaultForm={name:"",category:"着物",type:"",season:"通年",color:"",pattern:"",material:"",memo:"",photo:null};
 const defaultProfile={nickname:"",email:"",password:""};
-const defaultCoord={kimono:null,obi:null,komonoList:[],uwagi:null};
+const defaultCoord={kimono:null,obi:null,komonoList:[],uwagi:null,obijime:null,obiage:null,obidom:null};
 
 export default function App() {
   const [items,setItems]=useState([]);
@@ -948,7 +1186,7 @@ export default function App() {
   const [showPw,setShowPw]=useState(false);
   const [wearHistory,setWearHistory]=useState([]);
   const [wearHistoryModal,setWearHistoryModal]=useState(null); // item
-  const setsuki=getTodaySetsuki();
+  const [setsuki] = useState(()=>getRandomSetsuki());
 
   useEffect(()=>{
     (async()=>{
@@ -982,7 +1220,7 @@ export default function App() {
 
   const handleSaveCoord=async ()=>{
     if(!coord.kimono) return;
-    const newCoords=[...savedCoords,{id:Date.now(),...coord,date:new Date().toLocaleDateString("ja-JP"),kisugatPhoto:null,memo:"",tags:[]}];
+    const newCoords=[...savedCoords,{id:Date.now(),...coord,date:new Date().toLocaleDateString("ja-JP"),kisugatPhoto:null,memo:"",tags:[],obijime:coord.obijime||null,obiage:coord.obiage||null,obidom:coord.obidom||null}];
     setSavedCoords(newCoords); await saveCoords(newCoords);
     alert("コーディネートを保存しました！");
   };
@@ -1006,7 +1244,7 @@ export default function App() {
   };
 
   const loadSavedCoord=sc=>{
-    setCoord({kimono:sc.kimono,obi:sc.obi,komonoList:sc.komonoList||[],uwagi:sc.uwagi||null});
+    setCoord({kimono:sc.kimono,obi:sc.obi,komonoList:sc.komonoList||[],uwagi:sc.uwagi||null,obijime:sc.obijime||null,obiage:sc.obiage||null,obidom:sc.obidom||null});
     setSelectedSavedCoord(null); setTab("coord");
   };
 
@@ -1043,11 +1281,14 @@ export default function App() {
     ? savedCoords.filter(sc => sc.tags && sc.tags.includes(coordTagFilter))
     : savedCoords;
 
-  const typeOpts=form.category==="着物"?KIMONO_TYPES:form.category==="帯"?OBI_TYPES:form.category==="上着"?UWAGI_TYPES:KOMON_TYPES;
+  const typeOpts=form.category==="着物"?KIMONO_TYPES:form.category==="帯"?OBI_TYPES:form.category==="帯締め"?OBIJIME_TYPES:form.category==="帯揚げ"?OBIAGE_TYPES:form.category==="帯留"?OBIDOM_TYPES:form.category==="上着"?UWAGI_TYPES:KOMON_TYPES;
   const catItems=cat=>items.filter(it=>it.category===cat);
-  const coordSteps=[["kimono","👘 着物"],["obi","🎀 帯"],["uwagi","🧥 上着"],["komono","✨ 小物"]];
-  const getStepList=step=>({kimono:catItems("着物"),obi:catItems("帯"),uwagi:catItems("上着"),komono:catItems("小物")}[step]);
-  const stepLabel=step=>({kimono:"着物",obi:"帯",uwagi:"上着",komono:"小物"}[step]);
+  const coordSteps=[["kimono","👘 着物"],["obi","🎀 帯"],["obiacc","🪢 帯まわり"],["uwagi","🧥 上着"],["komono","✨ 小物"]];
+  const getStepList=step=>{
+    if(step==="obiacc") return [...catItems("帯締め"),...catItems("帯揚げ"),...catItems("帯留")];
+    return {kimono:catItems("着物"),obi:catItems("帯"),uwagi:catItems("上着"),komono:catItems("小物")}[step]||[];
+  };
+  const stepLabel=step=>({kimono:"着物",obi:"帯",obiacc:"帯まわり",uwagi:"上着",komono:"小物"}[step]||step);
 
   const tc=todayColor;
   const C={bg:"#fdf6ee",header:"#7a4f2e",accent:"#c8a882",card:"#fff9f2",btn:"#8b5e3c",btnLight:"#e8d5c0"};
@@ -1168,25 +1409,15 @@ export default function App() {
                 </button>
               ))}
             </div>
-            {getStepList(coordStep).length===0&&<div style={{color:"#b89a7a",fontSize:14,textAlign:"center",padding:20}}>{stepLabel(coordStep)}が登録されていません</div>}
-            {getStepList(coordStep).map(item=>{
-              const selected=coordStep==="komono"?coord.komonoList.some(k=>k.id===item.id):coord[coordStep]?.id===item.id;
-              return (
-                <div key={item.id} onClick={()=>{
-                  if(coordStep==="komono")setCoord(cv=>({...cv,komonoList:selected?cv.komonoList.filter(k=>k.id!==item.id):[...cv.komonoList,item]}));
-                  else setCoord(cv=>({...cv,[coordStep]:selected?null:item}));
-                }} style={{display:"flex",gap:10,padding:10,borderRadius:8,marginBottom:8,background:selected?"#f0dfc8":C.card,border:`2px solid ${selected?C.accent:"#eddcc8"}`,cursor:"pointer"}}>
-                  <div style={{width:52,height:52,borderRadius:6,overflow:"hidden",background:"#f0e0cc",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    {item.photo?<img src={item.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:22}}>👘</span>}
-                  </div>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:"bold",fontSize:15,color:C.header}}>{item.name}</div>
-                    <div style={{fontSize:13,color:"#8b6a50"}}>{item.type}・{item.season}</div>
-                  </div>
-                  {selected&&<span style={{color:C.accent,fontSize:20,alignSelf:"center"}}>✓</span>}
-                </div>
-              );
-            })}
+            {getStepList(coordStep).length===0&&<div style={{color:"#b89a7a",fontSize:14,textAlign:"center",padding:20}}>{coordStep==="obiacc"?"帯締め・帯揚げ・帯留が登録されていません":stepLabel(coordStep)+"が登録されていません"}</div>}
+            {/* コーデフィルター（色・季節） */}
+            <CoordItemFilter
+              items={getStepList(coordStep)}
+              coord={coord}
+              coordStep={coordStep}
+              setCoord={setCoord}
+              C={C}
+            />
             <div style={{display:"flex",gap:8,marginTop:12}}>
               <button onClick={handleSaveCoord} style={{flex:1,padding:13,background:C.btn,color:"#fff",border:"none",borderRadius:10,cursor:"pointer",fontSize:15,fontWeight:"bold"}}>💾 コーデを保存</button>
               <button onClick={()=>setCoord(defaultCoord)} style={{padding:13,background:C.btnLight,color:C.header,border:"none",borderRadius:10,cursor:"pointer",fontSize:14}}>リセット</button>

@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ★ ここにSupabaseの情報を入力してください ★
+const SUPABASE_URL = "https://xastalujxwdklmfvoshn.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ewBtLH5TY5DA_WZtUtQoow_hDNgVgsG";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ITEM_CATEGORIES = ["着物","帯","帯締め","帯揚げ","帯留","小物","上着"];
 const KIMONO_TYPES = ["振袖","訪問着","付け下げ","色無地","小紋","紬","浴衣","留袖","その他"];
@@ -266,99 +272,127 @@ const kujiToCm=v=>v?String(Math.round(parseFloat(v)*37.88/10*10)/10):"";
 const cmToKuji=v=>v?String(Math.round(parseFloat(v)/37.88*10*100)/100):"";
 function convertSize(val,from,to){if(!val||from===to)return val||"";return from==="鯨尺"?kujiToCm(val):cmToKuji(val);}
 
-// ── ストレージヘルパー（localStorage版） ───────────────────
-// 写真（base64）は容量が大きいので個別キーで保存
-function lsGet(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function lsSet(key, value) {
-  try { localStorage.setItem(key, value); return true; }
-  catch(e) {
-    // QuotaExceededError: 古い写真キャッシュを削除して再試行
-    if (e.name === "QuotaExceededError" || e.code === 22) {
-      console.warn("localStorage quota exceeded, clearing old photos...");
-      const keys = Object.keys(localStorage).filter(k =>
-        k.startsWith("kiri_photo_") || k.startsWith("kiri_kisugat_")
-      );
-      // 半分消して再試行
-      keys.slice(0, Math.ceil(keys.length / 2)).forEach(k => {
-        try { localStorage.removeItem(k); } catch {}
-      });
-      try { localStorage.setItem(key, value); return true; } catch { return false; }
-    }
-    return false;
-  }
-}
-function lsRemove(key) {
-  try { localStorage.removeItem(key); } catch {}
-}
+// ── Supabaseストレージヘルパー ──────────────────────────────
 
 async function loadAllItems() {
-  try {
-    const raw = lsGet("kiri_meta");
-    if (!raw) return [];
-    const metas = JSON.parse(raw);
-    return metas.map(meta => {
-      const photo = lsGet("kiri_photo_" + meta.id);
-      return { ...meta, photo };
-    });
-  } catch { return []; }
+  const { data, error } = await supabase.from("items").select("*").order("id");
+  if (error) { console.error(error); return []; }
+  return (data||[]).map(row => ({
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    type: row.type,
+    season: row.season,
+    color: row.color,
+    pattern: row.pattern,
+    fabric: row.fabric,
+    memo: row.memo,
+    sizes: row.sizes || {},
+    sizeUnit: row.size_unit || "cm",
+    photo: row.photo,
+  }));
 }
 
-async function saveAllItems(items) {
-  const metas = items.map(({ photo, ...meta }) => meta);
-  lsSet("kiri_meta", JSON.stringify(metas));
-  for (const item of items) {
-    if (item.photo) lsSet("kiri_photo_" + item.id, item.photo);
-  }
-  // 削除されたアイテムの写真を掃除
-  const ids = new Set(items.map(it => String(it.id)));
-  Object.keys(localStorage)
-    .filter(k => k.startsWith("kiri_photo_"))
-    .forEach(k => {
-      const id = k.replace("kiri_photo_", "");
-      if (!ids.has(id)) lsRemove(k);
-    });
+async function saveOneItem(item, userId) {
+  const row = {
+    id: item.id,
+    user_id: userId,
+    name: item.name || "",
+    category: item.category || "",
+    type: item.type || "",
+    season: item.season || "",
+    color: item.color || "",
+    pattern: item.pattern || "",
+    fabric: item.fabric || "",
+    memo: item.memo || "",
+    sizes: item.sizes || {},
+    size_unit: item.sizeUnit || "cm",
+    photo: item.photo || null,
+  };
+  const { error } = await supabase.from("items").upsert(row, { onConflict: "id" });
+  if (error) console.error("saveOneItem error:", error);
+}
+
+async function deleteItemById(id) {
+  const { error } = await supabase.from("items").delete().eq("id", id);
+  if (error) console.error("deleteItemById error:", error);
 }
 
 async function loadCoords() {
-  try {
-    const raw = lsGet("kiri_coords");
-    if (!raw) return [];
-    const coords = JSON.parse(raw);
-    return coords.map(c => {
-      const kisugatPhoto = lsGet("kiri_kisugat_" + c.id);
-      return { ...c, kisugatPhoto };
-    });
-  } catch { return []; }
+  const { data, error } = await supabase.from("coords").select("*").order("id");
+  if (error) { console.error(error); return []; }
+  return (data||[]).map(row => ({
+    id: row.id,
+    date: row.date,
+    kimono: row.kimono,
+    obi: row.obi,
+    uwagi: row.uwagi,
+    obijime: row.obijime,
+    obiage: row.obiage,
+    obidom: row.obidom,
+    komonoList: row.komono_list || [],
+    kisugatPhoto: row.kisugat_photo,
+    memo: row.memo || "",
+    tags: row.tags || [],
+  }));
 }
 
-async function saveCoords(coords) {
-  const metas = coords.map(({ kisugatPhoto, ...c }) => c);
-  lsSet("kiri_coords", JSON.stringify(metas));
-  for (const c of coords) {
-    if (c.kisugatPhoto) lsSet("kiri_kisugat_" + c.id, c.kisugatPhoto);
-  }
+async function saveOneCoord(coord, userId) {
+  const row = {
+    id: coord.id,
+    user_id: userId,
+    date: coord.date,
+    kimono: coord.kimono || null,
+    obi: coord.obi || null,
+    uwagi: coord.uwagi || null,
+    obijime: coord.obijime || null,
+    obiage: coord.obiage || null,
+    obidom: coord.obidom || null,
+    komono_list: coord.komonoList || [],
+    kisugat_photo: coord.kisugatPhoto || null,
+    memo: coord.memo || "",
+    tags: coord.tags || [],
+  };
+  const { error } = await supabase.from("coords").upsert(row, { onConflict: "id" });
+  if (error) console.error("saveOneCoord error:", error);
 }
 
-async function deleteCoordById(id, coords) {
-  const nc = coords.filter(c => c.id !== id);
-  await saveCoords(nc);
-  lsRemove("kiri_kisugat_" + id);
-  return nc;
+async function deleteCoordById(id) {
+  const { error } = await supabase.from("coords").delete().eq("id", id);
+  if (error) console.error("deleteCoordById error:", error);
+  return true;
 }
 
-// 着用履歴の読み書き
 async function loadWearHistory() {
-  try {
-    const raw = lsGet("kiri_wear_history");
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch { return []; }
+  const { data, error } = await supabase.from("wear_history").select("*").order("id");
+  if (error) { console.error(error); return []; }
+  return (data||[]).map(row => ({
+    id: row.id,
+    itemId: row.item_id,
+    date: row.date,
+    note: row.note || "",
+  }));
 }
-async function saveWearHistory(history) {
-  lsSet("kiri_wear_history", JSON.stringify(history));
+
+async function saveOneWearRecord(record, userId) {
+  const { error } = await supabase.from("wear_history").upsert({
+    id: record.id,
+    user_id: userId,
+    item_id: record.itemId,
+    date: record.date,
+    note: record.note || "",
+  }, { onConflict: "id" });
+  if (error) console.error("saveOneWearRecord error:", error);
 }
+
+async function deleteWearRecord(id) {
+  const { error } = await supabase.from("wear_history").delete().eq("id", id);
+  if (error) console.error("deleteWearRecord error:", error);
+}
+
+// localStorageはプロフィールのみ引き続き使用
+function lsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function lsSet(key, value) { try { localStorage.setItem(key, value); } catch {} }
 
 // ── 桐箪笥SVG ──────────────────────────────────────────────
 function TansuSVG({ size=36 }) {
@@ -1163,6 +1197,13 @@ const defaultProfile={nickname:"",email:"",password:""};
 const defaultCoord={kimono:null,obi:null,komonoList:[],uwagi:null,obijime:null,obiage:null,obidom:null};
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
   const [items,setItems]=useState([]);
   const [tab,setTab]=useState("db");
   const [form,setForm]=useState(defaultForm);
@@ -1185,62 +1226,98 @@ export default function App() {
   const [profileSizeUnit,setProfileSizeUnit]=useState("cm");
   const [showPw,setShowPw]=useState(false);
   const [wearHistory,setWearHistory]=useState([]);
-  const [wearHistoryModal,setWearHistoryModal]=useState(null); // item
+  const [wearHistoryModal,setWearHistoryModal]=useState(null);
   const [setsuki] = useState(()=>getRandomSetsuki());
 
+  // ── 認証状態の監視 ──
   useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{
+      setUser(session?.user ?? null);
+    });
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=>{
+      setUser(session?.user ?? null);
+    });
+    return ()=>subscription.unsubscribe();
+  },[]);
+
+  // ── データ読み込み（ログイン後） ──
+  useEffect(()=>{
+    if(!user) { setLoading(false); return; }
     (async()=>{
+      setLoading(true);
       const its=await loadAllItems(); setItems(its);
       const cs=await loadCoords(); setSavedCoords(cs);
       const wh=await loadWearHistory(); setWearHistory(wh);
       try{const raw=lsGet("kimono_profile");if(raw){const p=JSON.parse(raw);setProfile(p);setProfileSizes(p.sizes||{});setProfileSizeUnit(p.sizeUnit||"cm");}}catch{}
       setLoading(false);
     })();
-  },[]);
+  },[user]);
 
-  const persistItems=async ni=>{setItems(ni);await saveAllItems(ni);};
+  // ── 認証処理 ──
+  const handleLogin = async () => {
+    setAuthLoading(true); setAuthError("");
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+    if (error) setAuthError("メールアドレスまたはパスワードが違います");
+    setAuthLoading(false);
+  };
+  const handleSignup = async () => {
+    setAuthLoading(true); setAuthError("");
+    const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+    if (error) setAuthError(error.message);
+    else setAuthError("確認メールを送りました。メールのリンクをクリックしてください。");
+    setAuthLoading(false);
+  };
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setItems([]); setSavedCoords([]); setWearHistory([]);
+  };
 
+  // ── CRUD ──
   const submitItem=async ()=>{
-    if(!form.name) return;
-    const item={...form,sizes:formSizes,sizeUnit:formSizeUnit};
+    if(!form.name || !user) return;
+    const id = editId !== null ? editId : Date.now();
+    const item={...form,id,sizes:formSizes,sizeUnit:formSizeUnit};
+    await saveOneItem(item, user.id);
     let ni;
-    if(editId!==null){ni=items.map(it=>it.id===editId?{...item,id:editId}:it);}
-    else{ni=[...items,{...item,id:Date.now()}];}
-    await persistItems(ni);
+    if(editId!==null){ni=items.map(it=>it.id===editId?item:it);}
+    else{ni=[...items,item];}
+    setItems(ni);
     setEditId(null); setForm(defaultForm); setFormSizes({}); setFormSizeUnit("cm"); setTab("db");
   };
 
   const deleteItem=async id=>{
-    const ni=items.filter(it=>it.id!==id);
-    await persistItems(ni);
-    lsRemove("kiri_photo_"+id);
+    await deleteItemById(id);
+    setItems(items.filter(it=>it.id!==id));
   };
 
   const startEdit=item=>{setForm(item);setFormSizes(item.sizes||{});setFormSizeUnit(item.sizeUnit||"cm");setEditId(item.id);setDetail(null);setTab("add");};
 
   const handleSaveCoord=async ()=>{
     if(!coord.kimono) return;
-    const newCoords=[...savedCoords,{id:Date.now(),...coord,date:new Date().toLocaleDateString("ja-JP"),kisugatPhoto:null,memo:"",tags:[],obijime:coord.obijime||null,obiage:coord.obiage||null,obidom:coord.obidom||null}];
-    setSavedCoords(newCoords); await saveCoords(newCoords);
+    const newCoord={id:Date.now(),...coord,date:new Date().toLocaleDateString("ja-JP"),kisugatPhoto:null,memo:"",tags:[],obijime:coord.obijime||null,obiage:coord.obiage||null,obidom:coord.obidom||null};
+    await saveOneCoord(newCoord, user.id);
+    setSavedCoords(cs=>[...cs, newCoord]);
     alert("コーディネートを保存しました！");
   };
 
   const updateSavedCoordPhoto=async (id,photo)=>{
-    const nc=savedCoords.map(sc=>sc.id===id?{...sc,kisugatPhoto:photo}:sc);
-    setSavedCoords(nc); await saveCoords(nc);
+    const updated2 = savedCoords.find(sc=>sc.id===id);
+    if(updated2){ await saveOneCoord({...updated2,kisugatPhoto:photo}, user.id); }
+    setSavedCoords(cs=>cs.map(sc=>sc.id===id?{...sc,kisugatPhoto:photo}:sc));
     setSelectedSavedCoord(prev=>prev?{...prev,kisugatPhoto:photo}:prev);
   };
 
   const updateSavedCoordMemo=async (id,memo,tags)=>{
-    const nc=savedCoords.map(sc=>sc.id===id?{...sc,memo,tags}:sc);
-    setSavedCoords(nc); await saveCoords(nc);
+    const updated = savedCoords.find(sc=>sc.id===id);
+    if(updated){ await saveOneCoord({...updated,memo,tags}, user.id); }
+    setSavedCoords(cs=>cs.map(sc=>sc.id===id?{...sc,memo,tags}:sc));
     setSelectedSavedCoord(prev=>prev?{...prev,memo,tags}:prev);
   };
 
   const handleDeleteSavedCoord=async id=>{
     if(!confirm("このコーデを削除しますか？")) return;
-    const nc=await deleteCoordById(id,savedCoords);
-    setSavedCoords(nc); setSelectedSavedCoord(null);
+    await deleteCoordById(id);
+    setSavedCoords(cs=>cs.filter(c=>c.id!==id)); setSelectedSavedCoord(null);
   };
 
   const loadSavedCoord=sc=>{
@@ -1250,14 +1327,12 @@ export default function App() {
 
   // 着用履歴
   const addWearRecord = async (record) => {
-    const nh = [...wearHistory, record];
-    setWearHistory(nh);
-    await saveWearHistory(nh);
+    await saveOneWearRecord(record, user.id);
+    setWearHistory(wh=>[...wh, record]);
   };
-  const deleteWearRecord = async (recordId) => {
-    const nh = wearHistory.filter(h => h.id !== recordId);
-    setWearHistory(nh);
-    await saveWearHistory(nh);
+  const handleDeleteWearRecord = async (recordId) => {
+    await deleteWearRecord(recordId);
+    setWearHistory(wh=>wh.filter(h=>h.id!==recordId));
   };
   const getWearCount = (itemId) => wearHistory.filter(h => h.itemId === itemId).length;
 
@@ -1293,6 +1368,50 @@ export default function App() {
   const tc=todayColor;
   const C={bg:"#fdf6ee",header:"#7a4f2e",accent:"#c8a882",card:"#fff9f2",btn:"#8b5e3c",btnLight:"#e8d5c0"};
 
+  // ── ログイン画面 ──
+  if(!user) return (
+    <div style={{fontFamily:"'Hiragino Sans','Yu Gothic',sans-serif",background:"#fdf6ee",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"100%",maxWidth:380,background:"#fff",borderRadius:20,padding:32,boxShadow:"0 4px 24px rgba(0,0,0,0.1)"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:40,marginBottom:8}}>👘</div>
+          <div style={{fontSize:22,fontWeight:"bold",color:"#7a4f2e",letterSpacing:3}}>桐箪笥</div>
+          <div style={{fontSize:13,color:"#b89a7a",marginTop:4}}>着物コーディネートアプリ</div>
+        </div>
+        <div style={{display:"flex",marginBottom:20,borderRadius:10,overflow:"hidden",border:"1px solid #e8d5c0"}}>
+          {["login","signup"].map(mode=>(
+            <button key={mode} onClick={()=>{setAuthMode(mode);setAuthError("");}}
+              style={{flex:1,padding:"10px",border:"none",background:authMode===mode?"#8b5e3c":"transparent",color:authMode===mode?"#fff":"#8b6a50",fontWeight:authMode===mode?"bold":"normal",cursor:"pointer",fontSize:14}}>
+              {mode==="login"?"ログイン":"新規登録"}
+            </button>
+          ))}
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:13,color:"#8b6a50",display:"block",marginBottom:4}}>メールアドレス</label>
+          <input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)}
+            placeholder="例：kimono@example.com"
+            style={{width:"100%",padding:"11px",borderRadius:8,border:"1.5px solid #c8a882",fontSize:15,boxSizing:"border-box",color:"#4a3020"}}/>
+        </div>
+        <div style={{marginBottom:6}}>
+          <label style={{fontSize:13,color:"#8b6a50",display:"block",marginBottom:4}}>パスワード</label>
+          <input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)}
+            placeholder="6文字以上"
+            style={{width:"100%",padding:"11px",borderRadius:8,border:"1.5px solid #c8a882",fontSize:15,boxSizing:"border-box",color:"#4a3020"}}
+            onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?handleLogin():handleSignup())}/>
+        </div>
+        {authError && <div style={{fontSize:13,color:authError.includes("送り")?"#2e7d32":"#c62828",background:authError.includes("送り")?"#e8f5e9":"#fff0f0",padding:"8px 12px",borderRadius:8,marginBottom:10,lineHeight:1.5}}>{authError}</div>}
+        <button onClick={authMode==="login"?handleLogin:handleSignup} disabled={authLoading||!authEmail||!authPassword}
+          style={{width:"100%",padding:13,background:authLoading?"#b89a7a":"#8b5e3c",color:"#fff",border:"none",borderRadius:10,fontSize:16,fontWeight:"bold",cursor:authLoading?"not-allowed":"pointer",marginTop:8}}>
+          {authLoading?"処理中...":(authMode==="login"?"ログイン":"アカウント作成")}
+        </button>
+        {authMode==="login"&&(
+          <div style={{textAlign:"center",marginTop:14,fontSize:13,color:"#b89a7a"}}>
+            アカウントをお持ちでない方は「新規登録」から
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,fontSize:16}}>読み込み中...</div>;
 
   return (
@@ -1313,7 +1432,8 @@ export default function App() {
           <TansuSVG size={36}/>
           <span style={{fontSize:19,fontWeight:"bold",letterSpacing:4}}>桐箪笥</span>
         </div>
-        <div style={{textAlign:"right"}}>
+        <div style={{textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+          <button onClick={handleLogout} style={{border:"1px solid rgba(255,255,255,0.5)",background:"transparent",color:"inherit",fontSize:11,borderRadius:12,padding:"2px 10px",cursor:"pointer",opacity:0.8}}>ログアウト</button>
           <div style={{fontSize:10,opacity:0.7}}>今日の色</div>
           <div style={{fontSize:13,fontWeight:"bold",letterSpacing:1}}>{tc.name}</div>
         </div>
@@ -1394,7 +1514,7 @@ export default function App() {
             history={wearHistory}
             onClose={()=>setWearHistoryModal(null)}
             onAdd={addWearRecord}
-            onDelete={deleteWearRecord}
+            onDelete={handleDeleteWearRecord}
           />
         )}
 

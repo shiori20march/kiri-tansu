@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ★ ここにSupabaseの情報を入力してください ★
-const SUPABASE_URL = "https://xastalujxwdklmfvoshn.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_ewBtLH5TY5DA_WZtUtQoow_hDNgVgsG";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ITEM_CATEGORIES = ["着物","帯","帯締め","帯揚げ","帯留","小物","上着"];
@@ -275,7 +275,9 @@ function convertSize(val,from,to){if(!val||from===to)return val||"";return from=
 // ── Supabaseストレージヘルパー ──────────────────────────────
 
 async function loadAllItems() {
-  const { data, error } = await supabase.from("items").select("*").order("id");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data, error } = await supabase.from("items").select("*").eq("user_id", user.id).order("id");
   if (error) { console.error(error); return []; }
   return (data||[]).map(row => ({
     id: row.id,
@@ -319,7 +321,9 @@ async function deleteItemById(id) {
 }
 
 async function loadCoords() {
-  const { data, error } = await supabase.from("coords").select("*").order("id");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data, error } = await supabase.from("coords").select("*").eq("user_id", user.id).order("id");
   if (error) { console.error(error); return []; }
   return (data||[]).map(row => ({
     id: row.id,
@@ -364,7 +368,9 @@ async function deleteCoordById(id) {
 }
 
 async function loadWearHistory() {
-  const { data, error } = await supabase.from("wear_history").select("*").order("id");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data, error } = await supabase.from("wear_history").select("*").eq("user_id", user.id).order("id");
   if (error) { console.error(error); return []; }
   return (data||[]).map(row => ({
     id: row.id,
@@ -1278,10 +1284,9 @@ export default function App() {
     const id = editId !== null ? editId : Date.now();
     const item={...form,id,sizes:formSizes,sizeUnit:formSizeUnit};
     await saveOneItem(item, user.id);
-    let ni;
-    if(editId!==null){ni=items.map(it=>it.id===editId?item:it);}
-    else{ni=[...items,item];}
-    setItems(ni);
+    // DBから再読み込みして確実に最新状態にする（重複防止）
+    const latest = await loadAllItems();
+    setItems(latest);
     setEditId(null); setForm(defaultForm); setFormSizes({}); setFormSizeUnit("cm"); setTab("db");
   };
 

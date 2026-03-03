@@ -1068,6 +1068,8 @@ function CoordVisual({coord}) {
   );
 }
 
+
+// ── 利用規約同意モーダル ────────────────────────────────────
 // ── コーデ画面アイテム選択コンポーネント（色・季節フィルター付き） ──
 function CoordItemFilter({items, coord, coordStep, setCoord, C}) {
   const [colorFilter, setColorFilter] = useState("");
@@ -1337,6 +1339,201 @@ function CoordTagFilter({ activeTag, setActiveTag }) {
   );
 }
 
+// ── 利用規約同意画面 ───────────────────────────────────────
+const TERMS_TEXT = `桐箪笥 利用規約
+
+第1条 サービスについて
+桐箪笥は、着物・帯・小物の管理とコーディネートを楽しむための個人運営アプリです。
+
+第2条 個人情報の最小化方針
+本サービスは個人を特定できる情報をできる限り収集しません。
+・メールアドレスはログイン認証のみに使用します
+・プロフィールには表示名と生まれた年のみ登録します
+・顔写真・氏名・住所・電話番号は収集しません
+
+第3条 セキュリティについて
+本サービスは個人が運営するアプリであり、企業レベルのセキュリティは保証できません。万一、不正アクセス等によりデータが流出した場合でも、運営者は責任を負いません。流出しても問題のない情報のみ登録することを推奨します。
+
+第4条 データの利用について
+・登録された写真・コーディネート情報を第三者に販売することはありません
+・個人が特定できない集計・統計データは、分析や販売に利用する場合があります
+
+第5条 投稿コンテンツについて
+・投稿した写真・コメントはアプリ内で他のユーザーに公開されます
+・投稿する写真は自身が権利を持つものに限ります
+・顔写真など個人が特定できる写真の投稿は推奨しません
+・他者を傷つける投稿・ハラスメント・商業目的の投稿は禁止します
+・不適切なコンテンツは予告なく削除する場合があります
+・投稿は1日3件までに制限されます
+
+第6条 免責事項
+・サービスは現状のまま提供します
+・データの損失・サービスの停止について運営者は責任を負いません
+・サービスは予告なく変更・終了する場合があります
+
+第7条 準拠法
+本規約は日本法に準拠します。`;
+
+function TermsModal({onAgree}) {
+  const [scrolled, setScrolled] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const ref = useRef();
+  const handleScroll = () => {
+    if(ref.current) {
+      const {scrollTop,scrollHeight,clientHeight} = ref.current;
+      if(scrollTop + clientHeight >= scrollHeight - 10) setScrolled(true);
+    }
+  };
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({length:80}, (_,i)=>currentYear-i);
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:420,maxHeight:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{padding:"16px 20px",borderBottom:"1px solid #eddcc8",background:"#fdf6ee"}}>
+          <div style={{fontSize:18,fontWeight:"bold",color:"#7a4f2e",textAlign:"center"}}>👘 桐箪笥へようこそ</div>
+          <div style={{fontSize:12,color:"#b89a7a",textAlign:"center",marginTop:4}}>ご利用前に利用規約をお読みください</div>
+        </div>
+        <div ref={ref} onScroll={handleScroll}
+          style={{flex:1,overflowY:"auto",padding:"16px 20px",fontSize:13,color:"#4a3020",lineHeight:1.8,whiteSpace:"pre-wrap"}}>
+          {TERMS_TEXT}
+        </div>
+        {!scrolled && (
+          <div style={{textAlign:"center",fontSize:12,color:"#b89a7a",padding:"6px",background:"#fdf6ee"}}>
+            ↓ 最後までスクロールしてください
+          </div>
+        )}
+        {scrolled && (
+          <div style={{padding:"16px 20px",borderTop:"1px solid #eddcc8",background:"#fdf6ee"}}>
+            <div style={{marginBottom:12}}>
+              <label style={{fontSize:13,color:"#8b6a50",display:"block",marginBottom:4}}>表示名 *（アプリ内で使う名前）</label>
+              <input type="text" value={displayName} onChange={e=>setDisplayName(e.target.value)}
+                placeholder="例：きものこ"
+                style={{width:"100%",padding:"9px",borderRadius:8,border:"1.5px solid #c8a882",fontSize:14,boxSizing:"border-box",color:"#4a3020"}}/>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:13,color:"#8b6a50",display:"block",marginBottom:4}}>生まれた年（統計目的のみ）</label>
+              <select value={birthYear} onChange={e=>setBirthYear(e.target.value)}
+                style={{width:"100%",padding:"9px",borderRadius:8,border:"1.5px solid #c8a882",fontSize:14,background:"#fff",color:"#4a3020"}}>
+                <option value="">選択してください</option>
+                {years.map(y=><option key={y} value={y}>{y}年</option>)}
+              </select>
+            </div>
+            <button onClick={()=>displayName&&onAgree(displayName,birthYear?parseInt(birthYear):null)}
+              disabled={!displayName}
+              style={{width:"100%",padding:13,background:displayName?"#8b5e3c":"#ccc",color:"#fff",border:"none",borderRadius:10,fontSize:15,fontWeight:"bold",cursor:displayName?"pointer":"not-allowed"}}>
+              同意してはじめる
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── コミュニティ投稿コンポーネント ──────────────────────────
+function PostCard({post, currentUserId, isAdmin, onReact, onReport, onDelete}) {
+  const myReaction = post.reactions?.find(r=>r.user_id===currentUserId)?.emoji;
+  const reactionCounts = ["👏","❤️","👍","😍"].reduce((acc,e)=>({
+    ...acc, [e]:(post.reactions||[]).filter(r=>r.emoji===e).length
+  }),{});
+  const totalReactions = (post.reactions||[]).length;
+  const displayName = post.profiles?.display_name || post.profile?.display_name || "ユーザー";
+  const dateStr = new Date(post.created_at).toLocaleDateString("ja-JP",{month:"long",day:"numeric"});
+
+  return (
+    <div style={{background:"#fff",borderRadius:14,marginBottom:16,border:"1px solid #eddcc8",overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+      {/* 投稿者ヘッダー */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px 8px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#f0dfc8,#c8a882)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>👘</div>
+          <div>
+            <div style={{fontSize:14,fontWeight:"bold",color:"#7a4f2e"}}>{displayName}</div>
+            <div style={{fontSize:11,color:"#b89a7a"}}>{dateStr}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:4}}>
+          {(currentUserId===post.user_id||isAdmin) && (
+            <button onClick={()=>onDelete(post.id)}
+              style={{fontSize:12,color:"#e57373",border:"1px solid #f8d7d7",background:"transparent",borderRadius:12,cursor:"pointer",padding:"3px 10px"}}>
+              削除
+            </button>
+          )}
+          {currentUserId!==post.user_id && (
+            <button onClick={()=>onReport(post.id)}
+              style={{fontSize:12,color:"#b89a7a",border:"1px solid #e8e0d8",background:"transparent",borderRadius:12,cursor:"pointer",padding:"3px 10px"}}>
+              報告
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 写真 */}
+      {post.photo && (
+        <img src={post.photo} alt="" style={{width:"100%",maxHeight:360,objectFit:"cover",display:"block"}}/>
+      )}
+
+      {/* コメント */}
+      {post.comment && (
+        <div style={{padding:"10px 14px",fontSize:14,color:"#4a3020",lineHeight:1.7,borderBottom:"1px solid #f5ece0"}}>
+          {post.comment}
+        </div>
+      )}
+
+      {/* リアクション */}
+      <div style={{padding:"10px 14px"}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          {["👏","❤️","👍","😍"].map(e=>(
+            <button key={e} onClick={()=>onReact(post.id,e)}
+              style={{
+                padding:"6px 13px",borderRadius:20,
+                border:`1.5px solid ${myReaction===e?"#c8a882":"#eee"}`,
+                background:myReaction===e?"#fdf0e0":"#f9f9f9",
+                cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",gap:5,
+                transition:"all 0.15s"
+              }}>
+              <span>{e}</span>
+              {reactionCounts[e]>0&&<span style={{fontSize:12,color:"#8b6a50",fontWeight:"bold"}}>{reactionCounts[e]}</span>}
+            </button>
+          ))}
+          {totalReactions>0 && (
+            <span style={{fontSize:12,color:"#b89a7a",marginLeft:4}}>{totalReactions}件のリアクション</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 新規投稿モーダル ────────────────────────────────────────
+function NewPostModal({onClose, onSubmit, todayPostCount}) {
+  const [photo, setPhoto] = useState(null);
+  const [comment, setComment] = useState("");
+  const [cropSrc, setCropSrc] = useState(null);
+  const ref = useRef();
+  const remaining = 3 - todayPostCount;
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:420,padding:20}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontWeight:"bold",fontSize:16,color:"#7a4f2e"}}>📸 着姿を投稿</div>
+          <button onClick={onClose} style={{border:"none",background:"transparent",fontSize:22,cursor:"pointer",color:"#b89a7a"}}>✕</button>
+        </div>
+        <div style={{fontSize:12,color:"#b89a7a",marginBottom:12}}>本日あと{remaining}件投稿できます</div>
+        <PhotoUpload value={photo} onChange={v=>setPhoto(v)}/>
+        <textarea value={comment} onChange={e=>setComment(e.target.value)}
+          placeholder="コメントを添えてください（任意）"
+          style={{width:"100%",padding:"10px",borderRadius:8,border:"1px solid #c8a882",fontSize:14,minHeight:80,resize:"vertical",boxSizing:"border-box",marginTop:12,marginBottom:12}}/>
+        <button onClick={()=>photo&&onSubmit(photo,comment)} disabled={!photo||remaining<=0}
+          style={{width:"100%",padding:12,background:photo&&remaining>0?"#8b5e3c":"#ccc",color:"#fff",border:"none",borderRadius:10,fontSize:15,fontWeight:"bold",cursor:photo&&remaining>0?"pointer":"not-allowed"}}>
+          {remaining<=0?"本日の投稿上限に達しました":"投稿する"}
+        </button>
+      </div>
+      {cropSrc&&<Cropper src={cropSrc} onDone={d=>{setPhoto(d);setCropSrc(null);}} onCancel={()=>setCropSrc(null)}/>}
+    </div>
+  );
+}
+
 // ── Main ────────────────────────────────────────────────────
 const defaultForm={name:"",category:"着物",type:"",shitate:"袷",seasons:[],color:"",pattern:"",material:"",memo:"",photo:null};
 const defaultProfile={nickname:"",email:"",password:""};
@@ -1374,6 +1571,11 @@ export default function App() {
   const [wearHistory,setWearHistory]=useState([]);
   const [wearHistoryModal,setWearHistoryModal]=useState(null);
   const [setsuki] = useState(()=>getRandomSetsuki());
+  const [dbProfile, setDbProfile] = useState(null); // Supabaseのprofileレコード
+  const [showTerms, setShowTerms] = useState(false); // 利用規約同意画面
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [posts, setPosts] = useState([]);
+  const [showPostModal, setShowPostModal] = useState(false);
 
   // ── 認証状態の監視＋データ読み込み（1回だけ実行） ──
   useEffect(()=>{
@@ -1385,7 +1587,19 @@ export default function App() {
       const its=await loadAllItems(); setItems(its);
       const cs=await loadCoords(); setSavedCoords(cs);
       const wh=await loadWearHistory(); setWearHistory(wh);
-      try{const raw=lsGet("kimono_profile");if(raw){const p=JSON.parse(raw);setProfile(p);setProfileSizes(p.sizes||{});setProfileSizeUnit(p.sizeUnit||"cm");}}catch{}
+      // Supabaseからプロフィール取得
+      const {data:prof} = await supabase.from("profiles").select("*").eq("id",u.id).single();
+      if(prof) {
+        setDbProfile(prof);
+        setProfile(p=>({...p, nickname:prof.display_name||"", birthYear:prof.birth_year||""}));
+        if(!prof.agreed_terms_at) setShowTerms(true); // 未同意なら規約表示
+        else setTermsAgreed(true);
+      } else {
+        // 初回ログイン：プロフィールレコード作成
+        await supabase.from("profiles").insert({id:u.id, display_name:"", is_admin:false});
+        setShowTerms(true);
+      }
+      try{const raw=lsGet("kimono_profile");if(raw){const p=JSON.parse(raw);setProfileSizes(p.sizes||{});setProfileSizeUnit(p.sizeUnit||"cm");}}catch{}
       setLoading(false);
     };
 
@@ -1427,6 +1641,73 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setItems([]); setSavedCoords([]); setWearHistory([]);
+    setDbProfile(null); setShowTerms(false); setTermsAgreed(false);
+  };
+
+  // ── 利用規約同意 ──
+  const handleAgreeTerms = async (displayName, birthYear) => {
+    if (!user) return;
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      display_name: displayName,
+      birth_year: birthYear ? parseInt(birthYear) : null,
+      agreed_terms_at: new Date().toISOString(),
+    });
+    setDbProfile(p=>({...p, display_name:displayName, birth_year:birthYear?parseInt(birthYear):null, agreed_terms_at:new Date().toISOString()}));
+    setProfile(p=>({...p, nickname:displayName, birthYear:birthYear||""}));
+    setShowTerms(false);
+    setTermsAgreed(true);
+  };
+
+  // ── 投稿関連 ──
+  const loadPosts = async () => {
+    const {data,error} = await supabase
+      .from("posts")
+      .select("*, reactions(*), profiles(display_name)")
+      .order("created_at",{ascending:false})
+      .limit(50);
+    if(!error) setPosts(data||[]);
+  };
+
+  const getTodayPostCount = () => {
+    const today = new Date().toISOString().slice(0,10);
+    return posts.filter(p=>p.user_id===user?.id && p.created_at.slice(0,10)===today).length;
+  };
+
+  const handleSubmitPost = async (photo, comment) => {
+    if(getTodayPostCount()>=3) { alert("本日の投稿上限（3件）に達しました"); return; }
+    const {error} = await supabase.from("posts").insert({
+      user_id: user.id, photo, comment
+    });
+    if(!error) { await loadPosts(); setShowPostModal(false); }
+    else alert("投稿に失敗しました");
+  };
+
+  const handleReact = async (postId, emoji) => {
+    const existing = posts.find(p=>p.id===postId)?.reactions?.find(r=>r.user_id===user.id);
+    if(existing) {
+      if(existing.emoji===emoji) {
+        await supabase.from("reactions").delete().eq("id",existing.id);
+      } else {
+        await supabase.from("reactions").update({emoji}).eq("id",existing.id);
+      }
+    } else {
+      await supabase.from("reactions").insert({post_id:postId, user_id:user.id, emoji});
+    }
+    await loadPosts();
+  };
+
+  const handleReport = async (postId) => {
+    if(!confirm("この投稿を報告しますか？")) return;
+    await supabase.from("reports").insert({post_id:postId, user_id:user.id, reason:"不適切なコンテンツ"});
+    alert("報告を受け付けました。ありがとうございます。");
+  };
+
+  const handleDeletePost = async (postId) => {
+    if(!confirm("この投稿を削除しますか？")) return;
+    await supabase.from("reactions").delete().eq("post_id",postId);
+    await supabase.from("posts").delete().eq("id",postId);
+    await loadPosts();
   };
 
   // ── CRUD ──
@@ -1606,8 +1887,8 @@ export default function App() {
 
       {/* タブ */}
       <div style={{display:"flex",background:"#f0e0cc",borderBottom:`2px solid ${C.accent}`}}>
-        {[["db","📚 一覧"],["coord","✨ コーデ"],["add",editId?"✏️ 編集":"➕ 登録"],["profile","👤 私"]].map(([key,label])=>(
-          <button key={key} onClick={()=>{setTab(key);if(key!=="add"&&editId){setEditId(null);setForm(defaultForm);setFormSizes({});setFormSizeUnit("cm");}}}
+        {[["db","📚 一覧"],["coord","✨ コーデ"],["add",editId?"✏️ 編集":"➕ 登録"],["community","🌸 みんな"],["profile","👤 私"]].map(([key,label])=>(
+          <button key={key} onClick={()=>{setTab(key);if(key!=="add"&&editId){setEditId(null);setForm(defaultForm);setFormSizes({});setFormSizeUnit("cm");}if(key==="community")loadPosts();}}
             style={{flex:1,padding:"11px 2px",border:"none",background:tab===key?C.accent:"transparent",color:tab===key?"#fff":C.header,fontWeight:tab===key?"bold":"normal",cursor:"pointer",fontSize:13}}>
             {label}
           </button>
@@ -1750,6 +2031,66 @@ export default function App() {
           </div>
         )}
 
+        {/* ── コミュニティ ── */}
+        {tab==="community"&&(
+          <div>
+            {/* ヘッダー */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div>
+                <div style={{fontSize:17,fontWeight:"bold",color:C.header}}>🌸 みんなの着姿</div>
+                <div style={{fontSize:12,color:"#b89a7a",marginTop:2}}>{posts.length}件の投稿</div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={loadPosts}
+                  style={{padding:"8px 12px",background:"transparent",color:C.header,border:`1px solid ${C.accent}`,borderRadius:20,fontSize:13,cursor:"pointer"}}>
+                  🔄
+                </button>
+                <button onClick={()=>setShowPostModal(true)}
+                  style={{padding:"8px 16px",background:C.btn,color:"#fff",border:"none",borderRadius:20,fontSize:13,fontWeight:"bold",cursor:"pointer"}}>
+                  ＋ 投稿
+                </button>
+              </div>
+            </div>
+
+            {/* 本日の残り投稿数 */}
+            {(() => {
+              const remaining = 3 - getTodayPostCount();
+              return (
+                <div style={{background:"#fdf6ee",borderRadius:10,padding:"8px 14px",marginBottom:14,fontSize:12,color:"#8b6a50",display:"flex",alignItems:"center",gap:6}}>
+                  <span>📸</span>
+                  <span>本日あと<strong>{remaining}</strong>件投稿できます</span>
+                  {remaining===0 && <span style={{color:"#e57373",fontWeight:"bold"}}>（本日の上限に達しました）</span>}
+                </div>
+              );
+            })()}
+
+            {/* 投稿一覧 */}
+            {posts.length===0 ? (
+              <div style={{textAlign:"center",padding:40,color:"#b89a7a"}}>
+                <div style={{fontSize:48,marginBottom:12}}>👘</div>
+                <div style={{fontSize:15,fontWeight:"bold",marginBottom:6}}>まだ投稿がありません</div>
+                <div style={{fontSize:13}}>最初の着姿を投稿してみましょう！</div>
+                <button onClick={()=>setShowPostModal(true)}
+                  style={{marginTop:16,padding:"10px 24px",background:C.btn,color:"#fff",border:"none",borderRadius:20,fontSize:14,fontWeight:"bold",cursor:"pointer"}}>
+                  ＋ 投稿する
+                </button>
+              </div>
+            ) : (
+              posts.map(post=>(
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  currentUserId={user.id}
+                  isAdmin={dbProfile?.is_admin}
+                  onReact={handleReact}
+                  onReport={handleReport}
+                  onDelete={handleDeletePost}
+                />
+              ))
+            )}
+          </div>
+        )}
+
         {/* ── 登録 ── */}
         {tab==="add"&&(
           <AddForm
@@ -1766,37 +2107,34 @@ export default function App() {
         {/* ── プロフィール ── */}
         {tab==="profile"&&(
           <div>
-            <div style={{fontSize:17,fontWeight:"bold",color:C.header,marginBottom:16}}>👤 個人プロフィール</div>
+            <div style={{fontSize:17,fontWeight:"bold",color:C.header,marginBottom:16}}>👤 マイプロフィール</div>
+
+            {/* プロフィールカード */}
+            <div style={{background:"linear-gradient(135deg,#f0dfc8,#e8c9a0)",borderRadius:12,padding:16,marginBottom:16,display:"flex",alignItems:"center",gap:14}}>
+              <div style={{width:56,height:56,borderRadius:"50%",background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0}}>👘</div>
+              <div>
+                <div style={{fontSize:18,fontWeight:"bold",color:"#7a4f2e"}}>{dbProfile?.display_name||"未設定"} さん</div>
+                <div style={{fontSize:12,color:"#8b6a50",marginTop:2}}>{dbProfile?.birth_year?`${dbProfile.birth_year}年生まれ`:""}</div>
+                {dbProfile?.is_admin&&<div style={{fontSize:11,background:"#8b5e3c",color:"#fff",borderRadius:10,padding:"1px 8px",display:"inline-block",marginTop:4}}>管理者</div>}
+              </div>
+            </div>
 
             {/* 着用統計 */}
             {items.length > 0 && (
-              <div style={{background:"linear-gradient(135deg,#f0dfc8,#e8c9a0)",borderRadius:12,padding:16,marginBottom:16}}>
+              <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:16,border:"1px solid #eddcc8"}}>
                 <div style={{fontSize:14,fontWeight:"bold",color:"#7a4f2e",marginBottom:10}}>📊 着用統計</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                  <div style={{background:"rgba(255,255,255,0.6)",borderRadius:8,padding:10,textAlign:"center"}}>
-                    <div style={{fontSize:24,fontWeight:"bold",color:"#7a4f2e"}}>{items.length}</div>
-                    <div style={{fontSize:12,color:"#b89a7a"}}>登録アイテム</div>
-                  </div>
-                  <div style={{background:"rgba(255,255,255,0.6)",borderRadius:8,padding:10,textAlign:"center"}}>
-                    <div style={{fontSize:24,fontWeight:"bold",color:"#7a4f2e"}}>{wearHistory.length}</div>
-                    <div style={{fontSize:12,color:"#b89a7a"}}>着用記録</div>
-                  </div>
-                  <div style={{background:"rgba(255,255,255,0.6)",borderRadius:8,padding:10,textAlign:"center"}}>
-                    <div style={{fontSize:24,fontWeight:"bold",color:"#7a4f2e"}}>{savedCoords.length}</div>
-                    <div style={{fontSize:12,color:"#b89a7a"}}>コーデ保存数</div>
-                  </div>
-                  <div style={{background:"rgba(255,255,255,0.6)",borderRadius:8,padding:10,textAlign:"center"}}>
-                    <div style={{fontSize:24,fontWeight:"bold",color:"#7a4f2e"}}>
-                      {items.reduce((max,it)=>Math.max(max,getWearCount(it.id)),0)}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  {[[items.length,"登録アイテム"],[wearHistory.length,"着用記録"],[savedCoords.length,"コーデ保存数"],[items.reduce((max,it)=>Math.max(max,getWearCount(it.id)),0),"最多着用回数"]].map(([v,l])=>(
+                    <div key={l} style={{background:"rgba(255,255,255,0.8)",borderRadius:8,padding:10,textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:"bold",color:"#7a4f2e"}}>{v}</div>
+                      <div style={{fontSize:11,color:"#b89a7a"}}>{l}</div>
                     </div>
-                    <div style={{fontSize:12,color:"#b89a7a"}}>最多着用回数</div>
-                  </div>
+                  ))}
                 </div>
-                {/* よく着るアイテム */}
                 {wearHistory.length > 0 && (() => {
-                  const top = items.sort((a,b)=>getWearCount(b.id)-getWearCount(a.id)).filter(it=>getWearCount(it.id)>0)[0];
+                  const top = [...items].sort((a,b)=>getWearCount(b.id)-getWearCount(a.id)).filter(it=>getWearCount(it.id)>0)[0];
                   return top ? (
-                    <div style={{marginTop:10,padding:"8px 12px",background:"rgba(255,255,255,0.5)",borderRadius:8,fontSize:13,color:"#7a4f2e"}}>
+                    <div style={{marginTop:10,padding:"8px 12px",background:"rgba(255,255,255,0.7)",borderRadius:8,fontSize:13,color:"#7a4f2e"}}>
                       🌟 よく着るアイテム：<strong>{top.name}</strong>（{getWearCount(top.id)}回）
                     </div>
                   ) : null;
@@ -1804,36 +2142,51 @@ export default function App() {
               </div>
             )}
 
-            {[{label:"愛称",key:"nickname",type:"text",placeholder:"例：きものこ"},{label:"メールアドレス",key:"email",type:"email",placeholder:"example@mail.com"}].map(({label,key,type,placeholder})=>(
-              <div key={key} style={{marginBottom:14}}>
-                <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>{label}</label>
-                <input type={type} value={profile[key]||""} onChange={e=>setProfile(p=>({...p,[key]:e.target.value}))} placeholder={placeholder}
+            {/* プロフィール編集 */}
+            <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:14,border:"1px solid #eddcc8"}}>
+              <div style={{fontSize:14,fontWeight:"bold",color:C.header,marginBottom:12}}>✏️ プロフィール編集</div>
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:13,color:"#8b6a50",display:"block",marginBottom:4}}>表示名</label>
+                <input type="text" value={profile.nickname||""} onChange={e=>setProfile(p=>({...p,nickname:e.target.value}))}
+                  placeholder="例：きものこ"
                   style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
               </div>
-            ))}
-            <div style={{marginBottom:14}}>
-              <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>パスワード（メモ用）</label>
-              <div style={{display:"flex",gap:8}}>
-                <input type={showPw?"text":"password"} value={profile.password||""} onChange={e=>setProfile(p=>({...p,password:e.target.value}))} placeholder="パスワードを入力"
-                  style={{flex:1,padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
-                <button onClick={()=>setShowPw(v=>!v)} style={{padding:"10px 14px",borderRadius:8,border:`1px solid ${C.accent}`,background:"transparent",cursor:"pointer",fontSize:13,color:C.header}}>{showPw?"隠す":"表示"}</button>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:13,color:"#8b6a50",display:"block",marginBottom:4}}>生まれた年</label>
+                <select value={profile.birthYear||""} onChange={e=>setProfile(p=>({...p,birthYear:e.target.value}))}
+                  style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,background:"#fff",fontSize:15,color:"#4a3020"}}>
+                  <option value="">選択してください</option>
+                  {Array.from({length:80},(_,i)=>new Date().getFullYear()-i).map(y=>(
+                    <option key={y} value={y}>{y}年</option>
+                  ))}
+                </select>
               </div>
+              <button onClick={async()=>{
+                await supabase.from("profiles").upsert({id:user.id, display_name:profile.nickname, birth_year:profile.birthYear?parseInt(profile.birthYear):null});
+                setDbProfile(p=>({...p,display_name:profile.nickname,birth_year:profile.birthYear?parseInt(profile.birthYear):null}));
+                const p={...profile,sizes:profileSizes,sizeUnit:profileSizeUnit};
+                lsSet("kimono_profile",JSON.stringify(p));
+                alert("保存しました！");
+              }} style={{width:"100%",padding:12,background:C.btn,color:"#fff",border:"none",borderRadius:10,fontSize:15,fontWeight:"bold",cursor:"pointer"}}>
+                💾 保存する
+              </button>
             </div>
-            <div style={{background:"#f5ece0",borderRadius:10,padding:14,marginBottom:16}}>
-              <div style={{fontSize:15,fontWeight:"bold",color:C.header,marginBottom:10}}>👘 自分の着物サイズ</div>
+
+            {/* 着物サイズ */}
+            <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:14,border:"1px solid #eddcc8"}}>
+              <div style={{fontSize:14,fontWeight:"bold",color:C.header,marginBottom:10}}>👘 自分の着物サイズ</div>
               <SizeFields category="着物" sizes={profileSizes} setSizes={setProfileSizes} unit={profileSizeUnit} setUnit={setProfileSizeUnit}/>
+              <button onClick={()=>{const p={...profile,sizes:profileSizes,sizeUnit:profileSizeUnit};lsSet("kimono_profile",JSON.stringify(p));alert("サイズを保存しました！");}}
+                style={{width:"100%",padding:11,background:C.btnLight,color:C.header,border:"none",borderRadius:10,fontSize:14,fontWeight:"bold",cursor:"pointer",marginTop:10}}>
+                💾 サイズを保存
+              </button>
             </div>
-            <button onClick={()=>{const p={...profile,sizes:profileSizes,sizeUnit:profileSizeUnit};setProfile(p);lsSet("kimono_profile",JSON.stringify(p));alert("保存しました！");}} style={{width:"100%",padding:14,background:C.btn,color:"#fff",border:"none",borderRadius:10,fontSize:16,fontWeight:"bold",cursor:"pointer"}}>
-              💾 保存する
+
+            {/* 利用規約の再表示 */}
+            <button onClick={()=>setShowTerms(true)}
+              style={{width:"100%",padding:10,background:"transparent",color:"#b89a7a",border:"1px solid #e8d5c0",borderRadius:10,fontSize:13,cursor:"pointer",marginBottom:10}}>
+              利用規約を確認する
             </button>
-            {profile.nickname&&(
-              <div style={{marginTop:20,padding:14,background:C.card,borderRadius:10,border:"1px solid #eddcc8"}}>
-                <div style={{fontSize:14,color:"#b89a7a",marginBottom:6}}>登録済みプロフィール</div>
-                <div style={{fontSize:17,fontWeight:"bold",color:C.header,marginBottom:4}}>{profile.nickname} さん</div>
-                {profile.email&&<div style={{fontSize:14,color:"#8b6a50",marginBottom:6}}>{profile.email}</div>}
-                <SizeDisplay category="着物" sizes={profileSizes} savedUnit={profileSizeUnit}/>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -1846,6 +2199,18 @@ export default function App() {
           onDelete={()=>handleDeleteSavedCoord(selectedSavedCoord.id)}
           onUpdatePhoto={photo=>updateSavedCoordPhoto(selectedSavedCoord.id,photo)}
           onUpdateMemo={(memo,tags)=>updateSavedCoordMemo(selectedSavedCoord.id,memo,tags)}
+        />
+      )}
+
+      {/* 利用規約モーダル */}
+      {showTerms && <TermsModal onAgree={handleAgreeTerms}/>}
+
+      {/* 投稿モーダル */}
+      {showPostModal && (
+        <NewPostModal
+          onClose={()=>setShowPostModal(false)}
+          onSubmit={handleSubmitPost}
+          todayPostCount={getTodayPostCount()}
         />
       )}
     </div>

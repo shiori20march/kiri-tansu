@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ★ ここにSupabaseの情報を入力してください ★
-const SUPABASE_URL = "https://xastalujxwdklmfvoshn.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_ewBtLH5TY5DA_WZtUtQoow_hDNgVgsG";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ITEM_CATEGORIES = ["着物","帯","帯締め","帯揚げ","帯留","小物","上着"];
@@ -14,7 +14,9 @@ const OBIAGE_TYPES = ["縮緬","絞り","綸子","絽","紗","その他"];
 const OBIDOM_TYPES = ["七宝","花","蝶","鳥","幾何学","アンティーク","その他"];
 const KOMON_TYPES = ["草履","バッグ","半衿","重ね衿","その他"];
 const UWAGI_TYPES = ["羽織","道行","道中着","チリ除けコート","コート","スカーフ","その他"];
-const SEASONS = ["袷","単衣","薄物","その他"];
+const SHITATE_OPTIONS = ["袷","単衣","夏物","その他"]; // 仕立て（着物・上着用）
+const SEASON_MONTHS = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月","通年"]; // 季節（月別）
+const SEASONS = ["袷","単衣","薄物","その他"]; // 後方互換用（フィルターで使用）
 const KIMONO_SIZE_FIELDS = ["身丈","裄丈","袖丈","前幅","後ろ幅"];
 const OBI_SIZE_FIELDS = ["長さ","幅"];
 
@@ -282,7 +284,9 @@ async function loadAllItems() {
     name: row.name,
     category: row.category,
     type: row.type,
-    season: row.season,
+    shitate: row.season || "",
+    season: row.season || "",
+    seasons: row.sizes?.seasons || [],
     color: row.color,
     pattern: row.pattern,
     fabric: row.fabric,
@@ -300,12 +304,12 @@ async function saveOneItem(item, userId) {
     name: item.name || "",
     category: item.category || "",
     type: item.type || "",
-    season: item.season || "",
+    season: item.shitate || item.season || "",
     color: item.color || "",
     pattern: item.pattern || "",
     fabric: item.fabric || "",
     memo: item.memo || "",
-    sizes: item.sizes || {},
+    sizes: {...(item.sizes||{}), seasons: item.seasons||[]},
     size_unit: item.sizeUnit || "cm",
     photo: item.photo || null,
   };
@@ -711,7 +715,7 @@ function DetailModal({detail, onClose, onEdit, onDelete, onWearHistory, wearCoun
             </div>
           )}
         </div>
-        {[["カテゴリ",detail.category],["種類",detail.type],["季節",detail.season],["色",detail.color],["柄",detail.pattern],["生地",detail.fabric],["メモ",detail.memo]].map(([k,v])=>v?(
+        {[["カテゴリ",detail.category],["種類",detail.type],["仕立て",detail.shitate||detail.season],["季節",(detail.seasons||[]).join("・")||null],["色",detail.color],["柄",detail.pattern],["生地",detail.fabric],["メモ",detail.memo]].map(([k,v])=>v?(
           <div key={k} style={{display:"flex",gap:8,marginBottom:7,fontSize:15}}>
             <span style={{color:"#b89a7a",width:56,flexShrink:0}}>{k}</span>
             <span style={{color:"#4a3020"}}>{v}</span>
@@ -777,67 +781,97 @@ function AddForm({form,setForm,formSizes,setFormSizes,formSizeUnit,setFormSizeUn
           {typeOpts.map(o=><option key={o}>{o}</option>)}
         </select>
       </div>
+      {/* 仕立て：着物・帯・上着のみ表示 */}
+      {!isObiAcc && (
+        <div style={{marginBottom:13}}>
+          <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>仕立て</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {SHITATE_OPTIONS.map(s=>(
+              <button key={s} onClick={()=>setForm(f=>({...f,shitate:s}))}
+                style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${form.shitate===s?C.accent:"#ddd"}`,background:form.shitate===s?C.accent:"transparent",color:form.shitate===s?"#fff":C.header,fontSize:14,cursor:"pointer",fontWeight:form.shitate===s?"bold":"normal"}}>
+                {s}
+              </button>
+            ))}
+          </div>
+          <div style={{fontSize:11,color:"#b89a7a",marginTop:5,lineHeight:1.5}}>
+            {form.shitate==="袷"?"● 袷：裏地あり。10〜5月頃（盛夏を除く）に着る最もオーソドックスな仕立て。":
+             form.shitate==="単衣"?"● 単衣：裏地なし。6月・9月の衣替えの時期に着る薄手の仕立て。":
+             form.shitate==="夏物"?"● 夏物：透け感のある生地。7〜8月の盛夏に着る最も薄い仕立て。絽・紗・麻など。":""}
+          </div>
+        </div>
+      )}
+      {/* 季節（月別・複数選択） */}
       <div style={{marginBottom:13}}>
-        <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>季節・仕立て</label>
+        <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:6}}>季節</label>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {SEASONS.map(s=>(
-            <button key={s} onClick={()=>setForm(f=>({...f,season:s}))}
-              style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${form.season===s?C.accent:"#ddd"}`,background:form.season===s?C.accent:"transparent",color:form.season===s?"#fff":C.header,fontSize:14,cursor:"pointer",fontWeight:form.season===s?"bold":"normal"}}>
-              {s}
-            </button>
-          ))}
+          {SEASON_MONTHS.map(m=>{
+            const checked = (form.seasons||[]).includes(m);
+            return (
+              <button key={m} onClick={()=>setForm(f=>{
+                const cur = f.seasons||[];
+                if(m==="通年") return {...f,seasons:checked?[]:["通年"]};
+                const without通年 = cur.filter(x=>x!=="通年");
+                return {...f,seasons:checked?without通年.filter(x=>x!==m):[...without通年,m]};
+              })}
+                style={{padding:"5px 11px",borderRadius:20,border:`1.5px solid ${checked?C.accent:"#ddd"}`,background:checked?C.accent:"transparent",color:checked?"#fff":C.header,fontSize:13,cursor:"pointer",fontWeight:checked?"bold":"normal"}}>
+                {checked?"✓ ":""}{m}
+              </button>
+            );
+          })}
         </div>
-        <div style={{fontSize:11,color:"#b89a7a",marginTop:5,lineHeight:1.5}}>
-          {form.season==="袷"?"● 袷：裏地あり。10〜5月頃（盛夏を除く）に着る最もオーソドックスな仕立て。":
-           form.season==="単衣"?"● 単衣：裏地なし。6月・9月の衣替えの時期に着る薄手の仕立て。":
-           form.season==="薄物"?"● 薄物：透け感のある生地。7〜8月の盛夏に着る最も薄い仕立て。絽・紗・麻など。":""}
-        </div>
+        {(form.seasons||[]).length===0 && <div style={{fontSize:11,color:"#b89a7a",marginTop:4}}>該当する月または「通年」を選んでください</div>}
       </div>
       <div style={{marginBottom:13}}>
         <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>色</label>
         <input type="text" value={form.color||""} onChange={e=>setForm(f=>({...f,color:e.target.value}))} placeholder="例：藤色"
           style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
       </div>
-      <div style={{marginBottom:13}}>
-        <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>柄</label>
-        {showPatternSelect ? (
-          <>
-            <button onClick={()=>setShowPatternModal(true)}
-              style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,background:"#fff",fontSize:15,color:form.pattern?"#4a3020":"#b89a7a",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span>{form.pattern||"柄を選択してください"}</span>
-              <span style={{color:"#c8a882"}}>▼</span>
-            </button>
-            {currentPattern&&(
-              <div style={{marginTop:6,padding:"8px 12px",background:"#fff9f0",border:"1px solid #e8d5b0",borderRadius:8,fontSize:12,color:"#5a3a1a",lineHeight:1.6}}>
-                💡 {currentPattern.tip}
-              </div>
-            )}
-          </>
-        ) : (
-          <input type="text" value={form.pattern||""} onChange={e=>setForm(f=>({...f,pattern:e.target.value}))} placeholder="例：花菱"
-            style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
-        )}
-      </div>
-      <div style={{marginBottom:13}}>
-        <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>{isObi?"帯地":"生地"}</label>
-        {(isKimono||isObi) ? (
-          <>
-            <button onClick={()=>setShowFabricModal(true)}
-              style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,background:"#fff",fontSize:15,color:form.fabric?"#4a3020":"#b89a7a",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span>{form.fabric||(isObi?"帯地を選択してください":"生地を選択してください")}</span>
-              <span style={{color:"#c8a882"}}>▼</span>
-            </button>
-            {currentFabric&&(
-              <div style={{marginTop:6,padding:"8px 12px",background:"#fff9f0",border:"1px solid #e8d5b0",borderRadius:8,fontSize:12,color:"#5a3a1a",lineHeight:1.6}}>
-                💡 {currentFabric.tip}
-              </div>
-            )}
-          </>
-        ) : (
-          <input type="text" value={form.fabric||""} onChange={e=>setForm(f=>({...f,fabric:e.target.value}))} placeholder="例：正絹"
-            style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
-        )}
-      </div>
+      {/* 柄：帯留以外に表示 */}
+      {form.category !== "帯留" && (
+        <div style={{marginBottom:13}}>
+          <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>柄</label>
+          {showPatternSelect ? (
+            <>
+              <button onClick={()=>setShowPatternModal(true)}
+                style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,background:"#fff",fontSize:15,color:form.pattern?"#4a3020":"#b89a7a",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>{form.pattern||"柄を選択してください"}</span>
+                <span style={{color:"#c8a882"}}>▼</span>
+              </button>
+              {currentPattern&&(
+                <div style={{marginTop:6,padding:"8px 12px",background:"#fff9f0",border:"1px solid #e8d5b0",borderRadius:8,fontSize:12,color:"#5a3a1a",lineHeight:1.6}}>
+                  💡 {currentPattern.tip}
+                </div>
+              )}
+            </>
+          ) : (
+            <input type="text" value={form.pattern||""} onChange={e=>setForm(f=>({...f,pattern:e.target.value}))} placeholder="例：花菱"
+              style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
+          )}
+        </div>
+      )}
+      {/* 生地：帯留・帯締め・帯揚げ以外に表示 */}
+      {form.category !== "帯留" && !isObiAcc && (
+        <div style={{marginBottom:13}}>
+          <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>{isObi?"帯地":"生地"}</label>
+          {(isKimono||isObi) ? (
+            <>
+              <button onClick={()=>setShowFabricModal(true)}
+                style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,background:"#fff",fontSize:15,color:form.fabric?"#4a3020":"#b89a7a",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>{form.fabric||(isObi?"帯地を選択してください":"生地を選択してください")}</span>
+                <span style={{color:"#c8a882"}}>▼</span>
+              </button>
+              {currentFabric&&(
+                <div style={{marginTop:6,padding:"8px 12px",background:"#fff9f0",border:"1px solid #e8d5b0",borderRadius:8,fontSize:12,color:"#5a3a1a",lineHeight:1.6}}>
+                  💡 {currentFabric.tip}
+                </div>
+              )}
+            </>
+          ) : (
+            <input type="text" value={form.fabric||""} onChange={e=>setForm(f=>({...f,fabric:e.target.value}))} placeholder="例：正絹"
+              style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
+          )}
+        </div>
+      )}
       <div style={{marginBottom:13}}>
         <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>メモ</label>
         <textarea value={form.memo||""} onChange={e=>setForm(f=>({...f,memo:e.target.value}))} placeholder="購入先や思い出など"
@@ -1192,7 +1226,7 @@ function CoordTagFilter({ activeTag, setActiveTag }) {
 }
 
 // ── Main ────────────────────────────────────────────────────
-const defaultForm={name:"",category:"着物",type:"",season:"通年",color:"",pattern:"",material:"",memo:"",photo:null};
+const defaultForm={name:"",category:"着物",type:"",shitate:"袷",seasons:[],color:"",pattern:"",material:"",memo:"",photo:null};
 const defaultProfile={nickname:"",email:"",password:""};
 const defaultCoord={kimono:null,obi:null,komonoList:[],uwagi:null,obijime:null,obiage:null,obidom:null};
 
@@ -1256,8 +1290,9 @@ export default function App() {
       if (!initialized) return; // 初回はgetSessionで処理済みなのでスキップ
       const u = session?.user ?? null;
       setUser(u);
-      if (_event === "SIGNED_IN" || _event === "SIGNED_OUT") {
-        loadData(u);
+      // SIGNED_OUTのみリロード、SIGNED_INはgetSessionで処理済み
+      if (_event === "SIGNED_OUT") {
+        setItems([]); setSavedCoords([]); setWearHistory([]);
       }
     });
     return ()=>subscription.unsubscribe();
@@ -1301,7 +1336,14 @@ export default function App() {
     setItems(items.filter(it=>it.id!==id));
   };
 
-  const startEdit=item=>{setForm(item);setFormSizes(item.sizes||{});setFormSizeUnit(item.sizeUnit||"cm");setEditId(item.id);setDetail(null);setTab("add");};
+  const startEdit=item=>{
+    setForm({...item, shitate:item.shitate||item.season||"袷", seasons:item.seasons||[]});
+    setFormSizes(item.sizes||{});
+    setFormSizeUnit(item.sizeUnit||"cm");
+    setEditId(item.id);
+    setDetail(null);
+    setTab("add");
+  };
 
   const handleSaveCoord=async ()=>{
     if(!coord.kimono) return;
@@ -1492,7 +1534,7 @@ export default function App() {
                         {wc>0&&<span style={{fontSize:12,background:"#f0dfc8",color:"#7a4f2e",borderRadius:12,padding:"2px 8px",flexShrink:0,marginLeft:6}}>👘{wc}回</span>}
                       </div>
                       <div style={{fontSize:13,color:"#8b6a50"}}>{item.category}{item.type&&`・${item.type}`}</div>
-                      <div style={{fontSize:13,color:"#8b6a50"}}>{item.season}{item.color&&`・${item.color}`}</div>
+                      <div style={{fontSize:13,color:"#8b6a50"}}>{item.shitate||item.season}{item.color&&`・${item.color}`}</div>
                       {item.memo&&<div style={{fontSize:12,color:"#aaa",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.memo}</div>}
                     </div>
                   </div>

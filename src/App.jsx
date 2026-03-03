@@ -159,106 +159,213 @@ function getTodaySetsuki() {
 
 // 現在の節気インデックスを基準にランダム（同節気内の別フレーズ感を出すため、
 // 前後1節気の範囲でランダムに選ぶ）
-// 各節気に複数バリエーションを追加定義（開くたびにランダム選択）
+// ── 茶花データベース（節気別・100種以上） ────────────────────
+// 各節気に豊富な茶花バリエーションを定義。アプリ起動時にランダム選択。
 const SETSUKI_VARIATIONS = {
   "小寒": [
     {flower:"寒梅", greeting:"厳寒の候、寒さもひとしお身にしみる頃となりました。", pattern:"松・竹・梅・雪輪"},
     {flower:"水仙", greeting:"寒の入りを迎え、清澄な空気の中に春の予感を感じます。", pattern:"水仙・氷菊・松竹梅"},
+    {flower:"蝋梅", greeting:"寒中お見舞い申し上げます。蝋梅の香りが凛とした空気に漂う頃です。", pattern:"松・梅・竹"},
+    {flower:"福寿草", greeting:"新春の候、福寿草の黄金色に春の兆しを感じます。", pattern:"宝尽くし・松竹梅"},
+    {flower:"寒椿", greeting:"厳寒の折、椿の紅が雪の白に映える美しい季節です。", pattern:"椿・雪輪・氷"},
+    {flower:"千両", greeting:"寒さの中に千両の赤い実が鮮やかに映える頃となりました。", pattern:"松・千両・南天"},
   ],
   "大寒": [
     {flower:"蝋梅・福寿草", greeting:"大寒の候、一年で最も寒い時期を迎えております。", pattern:"雪持ち柳・椿・雪輪"},
     {flower:"蝋梅", greeting:"寒気凛冽の折、蝋梅の香りに春の兆しを感じます。", pattern:"梅・雪持ち松・宝尽くし"},
+    {flower:"寒菊", greeting:"大寒の候、寒菊の凛々しさに心が引き締まる思いがいたします。", pattern:"菊・雪輪・松"},
+    {flower:"水仙", greeting:"一年で最も寒い大寒を迎えました。水仙の白さが清々しい頃です。", pattern:"水仙・雪輪・氷菊"},
+    {flower:"節分草", greeting:"大寒の候、もうすぐ節分。春の訪れを心待ちにする頃です。", pattern:"梅・松竹梅・吉祥"},
+    {flower:"雪割草", greeting:"雪の下から顔を出す雪割草に、春の訪れを感じます。", pattern:"雪輪・春草・梅"},
   ],
   "立春": [
     {flower:"梅・水仙", greeting:"立春の候、春の訪れを感じる季節となりました。", pattern:"梅・松竹梅・春霞"},
     {flower:"福寿草", greeting:"春立つとは名ばかりの寒さですが、草木が芽吹き始める頃です。", pattern:"梅・春霞・蝶"},
+    {flower:"猫柳", greeting:"立春の候、猫柳の銀色の穂が春の光に輝く頃となりました。", pattern:"柳・流水・春草"},
+    {flower:"菜の花", greeting:"立春を過ぎ、菜の花の黄色が野を彩り始めました。", pattern:"菜の花・蝶・春霞"},
+    {flower:"梅・椿", greeting:"春の訪れとともに、梅と椿が競うように咲き始めました。", pattern:"梅・椿・春霞"},
+    {flower:"紅梅", greeting:"立春の候、紅梅の濃い紅色に春の喜びを感じます。", pattern:"梅・鶯・春草"},
+    {flower:"白梅", greeting:"白梅の清らかな香りに、春の息吹を感じる頃となりました。", pattern:"梅・霞・松竹梅"},
   ],
   "雨水": [
     {flower:"菜の花・猫柳", greeting:"雨水の候、雪も雨へと変わり始める頃となりました。", pattern:"梅・菜の花・春霞"},
     {flower:"菜の花", greeting:"春雨がそっと大地を潤し始める頃となりました。", pattern:"春草・水仙・鶯"},
+    {flower:"土筆", greeting:"雨水の候、土筆がそっと顔を出す春めいた季節です。", pattern:"土筆・蕨・春草"},
+    {flower:"沈丁花", greeting:"沈丁花の甘い香りが春の訪れを告げる頃となりました。", pattern:"春霞・蝶・梅"},
+    {flower:"木瓜", greeting:"雨水の頃、木瓜の紅い花が枝を彩り始めました。", pattern:"木瓜・春草・流水"},
+    {flower:"雪柳", greeting:"雪柳の白い小花が春風に揺れる季節となりました。", pattern:"柳・春霞・蝶"},
   ],
   "啓蟄": [
     {flower:"木蓮・タンポポ", greeting:"啓蟄の候、虫も目覚める春めいた季節となりました。", pattern:"蝶・桜・春草"},
     {flower:"土筆・菫", greeting:"土の中の虫も目を覚ます、春めいた季節です。", pattern:"蝶・土筆・霞"},
+    {flower:"連翹", greeting:"啓蟄の頃、連翹の黄色い花が春の陽光に輝いています。", pattern:"春草・蝶・霞"},
+    {flower:"辛夷", greeting:"辛夷の白い花が青空に映える、清々しい春の頃です。", pattern:"春霞・蝶・桜"},
+    {flower:"桃", greeting:"啓蟄を過ぎ、桃の花が野山を桃色に染め始めました。", pattern:"桃・蝶・春草"},
+    {flower:"山吹", greeting:"山吹の黄金色が春の野を鮮やかに彩る頃となりました。", pattern:"山吹・流水・春草"},
+    {flower:"蒲公英", greeting:"たんぽぽの綿毛が春風に舞う、のどかな季節です。", pattern:"春草・蝶・霞"},
   ],
   "春分": [
     {flower:"桜・春蘭", greeting:"春分の候、春光うららかな季節となりました。", pattern:"桜・蝶・貝合わせ"},
     {flower:"桜", greeting:"昼と夜の長さが等しくなり、いよいよ春本番です。", pattern:"桜・流水・鞠"},
+    {flower:"彼岸桜", greeting:"お彼岸の頃、彼岸桜が一足早く春を告げています。", pattern:"桜・霞・流水"},
+    {flower:"菫", greeting:"春分の候、野辺に菫が咲き揃う穏やかな季節です。", pattern:"菫・春草・蝶"},
+    {flower:"木蓮", greeting:"白木蓮の大輪が青空に映える、春らしい季節となりました。", pattern:"春霞・蝶・桜"},
+    {flower:"花大根", greeting:"春分の頃、花大根の薄紫が野を彩り始めました。", pattern:"春草・蝶・霞"},
   ],
   "清明": [
     {flower:"桜・山吹", greeting:"清明の候、花々が一斉に咲き誇る季節となりました。", pattern:"藤・桜吹雪・流水"},
     {flower:"山吹・躑躅", greeting:"清らかで明るい春の気に満ちた頃となりました。", pattern:"山吹・桜吹雪・蝶"},
+    {flower:"花水木", greeting:"清明の候、花水木の白やピンクが街を彩る頃です。", pattern:"桜吹雪・蝶・春霞"},
+    {flower:"都忘れ", greeting:"清明の頃、都忘れの可憐な花が春風に揺れています。", pattern:"春草・菫・蝶"},
+    {flower:"藤", greeting:"清明の候、藤の花房が風に揺れる美しい季節です。", pattern:"藤・流水・春霞"},
+    {flower:"牡丹", greeting:"百花の王・牡丹が豪華に咲き誇る季節となりました。", pattern:"牡丹・霞・蝶"},
+    {flower:"芝桜", greeting:"清明の頃、芝桜のピンクが大地を覆う頃です。", pattern:"桜・春草・霞"},
   ],
   "穀雨": [
     {flower:"藤・牡丹", greeting:"穀雨の候、春の雨に万物が潤う季節となりました。", pattern:"藤・牡丹・鞠"},
     {flower:"藤", greeting:"春雨が穀物を育てる恵みの季節を迎えました。", pattern:"藤・青海波・熨斗"},
+    {flower:"鉄線", greeting:"穀雨の頃、鉄線の大輪が雨に映える季節です。", pattern:"鉄線・流水・蝶"},
+    {flower:"苧環", greeting:"穀雨の候、苧環の糸を垂れたような花が風情を添えます。", pattern:"春草・流水・霞"},
+    {flower:"翁草", greeting:"穀雨の頃、翁草の白い綿毛が春風に揺れています。", pattern:"春草・蝶・霞"},
+    {flower:"八重桜", greeting:"穀雨の候、八重桜が豪華に咲き誇る頃となりました。", pattern:"桜・流水・春霞"},
+    {flower:"花韮", greeting:"穀雨の頃、花韮の白い星形の花が野を飾ります。", pattern:"春草・霞・蝶"},
   ],
   "立夏": [
     {flower:"菖蒲・藤", greeting:"立夏の候、青葉若葉の清々しい季節となりました。", pattern:"菖蒲・葵・紗綾形"},
     {flower:"卯の花", greeting:"暦の上では夏を迎え、若葉の薫りが心地よい季節です。", pattern:"菖蒲・流水・鱗"},
+    {flower:"鈴蘭", greeting:"立夏の候、鈴蘭の白い小花に初夏の清々しさを感じます。", pattern:"鈴蘭・流水・青海波"},
+    {flower:"芍薬", greeting:"立夏の頃、芍薬が豪華に咲き誇る季節となりました。", pattern:"芍薬・蝶・流水"},
+    {flower:"杜若", greeting:"立夏の候、杜若の紫が水辺を彩る頃です。", pattern:"杜若・流水・青海波"},
+    {flower:"薔薇", greeting:"立夏の頃、薔薇が一斉に咲き始める季節となりました。", pattern:"薔薇・蝶・流水"},
+    {flower:"石楠花", greeting:"立夏の候、石楠花の大輪が山を彩る頃です。", pattern:"春霞・蝶・花"},
   ],
   "小満": [
     {flower:"卯の花・撫子", greeting:"小満の候、草木が生い茂る季節となりました。", pattern:"撫子・麻の葉・絽の単衣"},
     {flower:"杜若", greeting:"万物が満ち足りる小満の頃、自然の豊かさを感じます。", pattern:"杜若・流水・麻の葉"},
+    {flower:"花菖蒲", greeting:"小満の頃、花菖蒲が水辺に紫の花を咲かせています。", pattern:"菖蒲・流水・青海波"},
+    {flower:"梅", greeting:"小満の候、梅の実が青々と育つ頃となりました。", pattern:"梅・流水・青海波"},
+    {flower:"苺", greeting:"小満の頃、苺が赤く熟す季節となりました。", pattern:"春草・流水・麻の葉"},
+    {flower:"紫露草", greeting:"小満の候、紫露草の青紫が朝露に輝く頃です。", pattern:"露草・流水・青海波"},
   ],
   "芒種": [
     {flower:"紫陽花・花菖蒲", greeting:"芒種の候、梅雨の季節を迎えております。", pattern:"紫陽花・流水・柳"},
     {flower:"紫陽花", greeting:"雨音に風情を感じる、梅雨の季節となりました。", pattern:"雨・柳・紫陽花・流水"},
+    {flower:"梔子", greeting:"芒種の頃、梔子の白い花が甘い香りを漂わせています。", pattern:"流水・柳・青海波"},
+    {flower:"半夏生", greeting:"芒種の候、半夏生が白く化粧をする頃となりました。", pattern:"流水・青海波・麻の葉"},
+    {flower:"夏椿", greeting:"芒種の頃、夏椿の白い花が一日で散る潔さに風情を感じます。", pattern:"流水・柳・青海波"},
+    {flower:"石榴", greeting:"芒種の候、石榴の朱色の花が鮮やかな季節です。", pattern:"流水・麻の葉・青海波"},
+    {flower:"菖蒲", greeting:"芒種の頃、菖蒲が水辺に静かに咲く季節となりました。", pattern:"菖蒲・流水・青海波"},
   ],
   "夏至": [
     {flower:"紫陽花・山百合", greeting:"夏至の候、一年で昼の最も長い季節となりました。", pattern:"朝顔・金魚・流水"},
     {flower:"半夏生", greeting:"一年で最も日の長い夏至を迎えました。", pattern:"流水・青海波・朝顔"},
+    {flower:"ねむの木", greeting:"夏至の頃、合歓の木がピンクの花を咲かせる季節です。", pattern:"流水・青海波・波"},
+    {flower:"山百合", greeting:"夏至の候、山百合の豪華な花が夏の山を飾ります。", pattern:"百合・流水・青海波"},
+    {flower:"桔梗", greeting:"夏至の頃、桔梗の涼やかな紫が目に染みる季節です。", pattern:"桔梗・流水・青海波"},
+    {flower:"撫子", greeting:"夏至の候、撫子の可憐な花が夏風に揺れています。", pattern:"撫子・流水・波"},
   ],
   "小暑": [
     {flower:"朝顔・向日葵", greeting:"小暑の候、暑さが日増しに厳しくなってまいりました。", pattern:"朝顔・花火・波"},
     {flower:"睡蓮", greeting:"本格的な夏の暑さが始まる頃となりました。", pattern:"金魚・波・花火・朝顔"},
+    {flower:"鬼百合", greeting:"小暑の候、鬼百合のオレンジ色が夏の盛りを告げています。", pattern:"百合・波・青海波"},
+    {flower:"木槿", greeting:"小暑の頃、木槿が一日花を次々と咲かせる季節です。", pattern:"木槿・波・麻の葉"},
+    {flower:"向日葵", greeting:"小暑の候、向日葵が夏の太陽に向かって咲き誇っています。", pattern:"向日葵・波・青海波"},
+    {flower:"蓮", greeting:"小暑の頃、蓮が朝の澄んだ空気の中で開く季節です。", pattern:"蓮・流水・青海波"},
+    {flower:"夕顔", greeting:"小暑の候、夕顔の白い花が夕暮れに涼を運びます。", pattern:"流水・波・朝顔"},
   ],
   "大暑": [
     {flower:"向日葵・蓮", greeting:"大暑の候、酷暑の毎日が続いております。", pattern:"蓮・金魚・花火・麻の葉"},
     {flower:"蓮", greeting:"一年で最も暑い大暑の頃、涼を求める装いで。", pattern:"青海波・氷・流水・蓮"},
+    {flower:"芙蓉", greeting:"大暑の候、芙蓉の大輪が炎天下に凛と咲いています。", pattern:"芙蓉・波・青海波"},
+    {flower:"百日紅", greeting:"大暑の頃、百日紅が真夏の日差しに負けず咲き続けます。", pattern:"波・花火・青海波"},
+    {flower:"鳳仙花", greeting:"大暑の候、鳳仙花の鮮やかな色が夏を彩ります。", pattern:"花火・波・麻の葉"},
+    {flower:"玉蜀黍", greeting:"大暑の頃、夏野菜が実り豊かな季節となりました。", pattern:"麻の葉・波・青海波"},
   ],
   "立秋": [
     {flower:"桔梗・萩", greeting:"立秋の候、暦の上では秋を迎えました。", pattern:"桔梗・萩・秋草"},
     {flower:"桔梗", greeting:"残暑厳しい折ですが、暦の上では秋となりました。", pattern:"秋草・桔梗・流水"},
+    {flower:"女郎花", greeting:"立秋の候、女郎花の黄色い花に秋の訪れを感じます。", pattern:"秋の七草・流水・萩"},
+    {flower:"藤袴", greeting:"立秋の頃、藤袴の淡紫が秋風に揺れ始めました。", pattern:"秋草・桔梗・萩"},
+    {flower:"葛", greeting:"立秋の候、葛の紫の花が野山を彩る頃となりました。", pattern:"葛・秋草・流水"},
+    {flower:"撫子", greeting:"立秋の頃、撫子が秋風に揺れる清楚な季節です。", pattern:"撫子・秋草・流水"},
+    {flower:"矢車菊", greeting:"立秋の候、矢車菊の青紫が涼やかな季節です。", pattern:"秋草・流水・萩"},
   ],
   "処暑": [
     {flower:"葛・秋桜", greeting:"処暑の候、暑さも峠を越した頃となりました。", pattern:"萩・桔梗・秋の七草"},
     {flower:"芙蓉", greeting:"朝夕に秋の涼しさを感じるようになった頃です。", pattern:"秋桜・萩・野菊"},
+    {flower:"秋桜", greeting:"処暑の候、秋桜が秋風にそよぐ季節となりました。", pattern:"秋桜・秋草・流水"},
+    {flower:"彼岸花", greeting:"処暑の頃、田の畦に彼岸花が赤く燃える季節です。", pattern:"彼岸花・秋草・流水"},
+    {flower:"萩", greeting:"処暑の候、萩の花が秋の野を彩り始めました。", pattern:"萩・秋草・流水"},
+    {flower:"水引草", greeting:"処暑の頃、水引草の細い茎に小さな花が連なる頃です。", pattern:"秋草・流水・萩"},
   ],
   "白露": [
     {flower:"萩・彼岸花", greeting:"白露の候、朝夕の涼しさが感じられる季節となりました。", pattern:"菊・紅葉・秋草"},
     {flower:"白萩", greeting:"草木に白露が宿り、秋の深まりを感じます。", pattern:"菊・雁・秋の七草"},
+    {flower:"竜胆", greeting:"白露の頃、竜胆の紫が秋の深まりを告げています。", pattern:"菊・紅葉・竜胆"},
+    {flower:"秋明菊", greeting:"白露の候、秋明菊の清楚な白が秋風に揺れています。", pattern:"菊・秋草・流水"},
+    {flower:"木犀", greeting:"白露の頃、金木犀の甘い香りが秋の空気に漂います。", pattern:"菊・紅葉・秋草"},
+    {flower:"彼岸花", greeting:"白露の候、曼珠沙華の紅が秋の田園に映えています。", pattern:"彼岸花・稲穂・秋草"},
+    {flower:"芒", greeting:"白露の頃、芒の穂が銀色に輝く季節となりました。", pattern:"芒・秋草・月"},
   ],
   "秋分": [
     {flower:"彼岸花・竜胆", greeting:"秋分の候、秋も深まり色づく季節となりました。", pattern:"菊・紅葉・楓"},
     {flower:"秋桜", greeting:"昼と夜が等しくなり、秋の静けさが心に沁みます。", pattern:"紅葉・楓・松虫草"},
+    {flower:"木犀", greeting:"秋分の候、金木犀の香りが秋の訪れを知らせています。", pattern:"菊・紅葉・楓"},
+    {flower:"野菊", greeting:"秋分の頃、野菊が野辺に可憐に咲く季節です。", pattern:"菊・秋草・紅葉"},
+    {flower:"吾亦紅", greeting:"秋分の候、吾亦紅の深紅が秋の野を彩ります。", pattern:"秋草・萩・紅葉"},
+    {flower:"紫苑", greeting:"秋分の頃、紫苑の薄紫が秋空に映える季節です。", pattern:"菊・紅葉・秋草"},
   ],
   "寒露": [
     {flower:"菊・コスモス", greeting:"寒露の候、秋の深まりを肌で感じる季節となりました。", pattern:"菊・紅葉・鹿"},
     {flower:"龍胆", greeting:"冷たい露が草木に宿る頃、秋が深まってまいりました。", pattern:"菊・枯れ野・雁"},
+    {flower:"菊", greeting:"寒露の候、菊の花が秋の庭を彩る頃となりました。", pattern:"菊・紅葉・市松"},
+    {flower:"山茶花", greeting:"寒露の頃、山茶花が早くも咲き始める季節です。", pattern:"菊・椿・紅葉"},
+    {flower:"柿", greeting:"寒露の候、柿の実が橙色に熟す秋の風情を感じます。", pattern:"柿・紅葉・菊"},
+    {flower:"銀杏", greeting:"寒露の頃、銀杏が黄金色に染まる季節となりました。", pattern:"紅葉・楓・菊"},
+    {flower:"酔芙蓉", greeting:"寒露の候、酔芙蓉が朝白く夕べ紅に変わる風情ある季節です。", pattern:"菊・秋草・紅葉"},
   ],
   "霜降": [
     {flower:"菊・山茶花", greeting:"霜降の候、朝夕はめっきり冷え込む季節となりました。", pattern:"菊・紅葉・枯れ野"},
     {flower:"菊", greeting:"霜が降り始め、木々が美しく色づく季節となりました。", pattern:"紅葉・菊・市松"},
+    {flower:"紅葉", greeting:"霜降の候、山々が錦秋に染まる美しい季節です。", pattern:"紅葉・楓・鹿"},
+    {flower:"石蕗", greeting:"霜降の頃、石蕗の黄色い花が晩秋の庭を明るくします。", pattern:"菊・枯れ野・紅葉"},
+    {flower:"山茶花", greeting:"霜降の候、山茶花が一輪また一輪と咲き始めました。", pattern:"椿・菊・紅葉"},
+    {flower:"野紺菊", greeting:"霜降の頃、野紺菊が晩秋の野辺に静かに咲いています。", pattern:"菊・紅葉・枯れ野"},
   ],
   "立冬": [
     {flower:"山茶花・茶の花", greeting:"立冬の候、暦の上では冬を迎えました。", pattern:"椿・松・吉祥文様"},
     {flower:"茶の花", greeting:"冬の扉が開く頃、凛とした空気に心が引き締まります。", pattern:"松・吉祥・七宝"},
+    {flower:"皇帝ダリア", greeting:"立冬の候、皇帝ダリアが晩秋の空に向かって高く咲いています。", pattern:"菊・松・吉祥"},
+    {flower:"椿", greeting:"立冬の頃、椿の蕾が固く結ぶ季節となりました。", pattern:"椿・松・雪輪"},
+    {flower:"南天", greeting:"立冬の候、南天の赤い実が冬の庭を飾り始めました。", pattern:"南天・松・吉祥"},
+    {flower:"千両・万両", greeting:"立冬の頃、千両・万両の赤い実が縁起よく輝いています。", pattern:"松竹梅・南天・吉祥"},
+    {flower:"冬菊", greeting:"立冬の候、冬菊が凛として咲く清潔な季節です。", pattern:"菊・松・雪輪"},
   ],
   "小雪": [
     {flower:"山茶花・南天", greeting:"小雪の候、北の地方では雪の便りも届く頃となりました。", pattern:"雪輪・松・椿"},
     {flower:"南天", greeting:"小さな雪が舞い始め、冬の深まりを感じます。", pattern:"雪持ち柳・椿・松"},
+    {flower:"寒菊", greeting:"小雪の候、寒菊が霜にも負けず凛と咲く頃です。", pattern:"菊・雪輪・松"},
+    {flower:"葉牡丹", greeting:"小雪の頃、葉牡丹が冬の庭を彩る季節となりました。", pattern:"松・南天・吉祥"},
+    {flower:"蝋梅", greeting:"小雪の候、蝋梅の蕾が膨らみ始める頃となりました。", pattern:"梅・松・雪輪"},
+    {flower:"水仙", greeting:"小雪の頃、水仙の白い花が冬の庭に清楚に咲いています。", pattern:"水仙・雪輪・松"},
   ],
   "大雪": [
     {flower:"寒椿・南天", greeting:"大雪の候、山々も白く雪化粧する季節となりました。", pattern:"雪持ち松・椿・松竹梅"},
     {flower:"寒椿", greeting:"雪が本格的に降り積もる頃となりました。", pattern:"雪輪・雪持ち松・吉祥"},
+    {flower:"蝋梅", greeting:"大雪の候、蝋梅の黄色い花が雪の中で輝いています。", pattern:"梅・雪輪・松竹梅"},
+    {flower:"水仙", greeting:"大雪の頃、水仙が雪の中から清楚に顔を出す季節です。", pattern:"水仙・雪輪・松"},
+    {flower:"千両", greeting:"大雪の候、千両の赤い実に雪が積もる風情ある季節です。", pattern:"松竹梅・南天・吉祥"},
+    {flower:"寒菊", greeting:"大雪の頃、寒菊が雪の中でも凛々しく咲いています。", pattern:"菊・雪輪・松"},
   ],
   "冬至": [
     {flower:"寒椿・蝋梅", greeting:"冬至の候、一年で最も夜が長い季節となりました。", pattern:"雪輪・松竹梅・宝尽くし"},
     {flower:"蝋梅", greeting:"冬至を境に陽が戻り始めます。一陽来復の節目です。", pattern:"松竹梅・宝尽くし・鶴亀"},
+    {flower:"福寿草", greeting:"冬至の頃、福寿草が春を待つ蕾を固く持っています。", pattern:"宝尽くし・松竹梅・吉祥"},
+    {flower:"柚子", greeting:"冬至の候、柚子湯で温まる日本の風情ある季節です。", pattern:"松竹梅・宝尽くし・雪輪"},
+    {flower:"寒椿", greeting:"冬至の頃、寒椿の紅が雪の白に映える美しい季節です。", pattern:"椿・松・雪輪"},
+    {flower:"水仙", greeting:"冬至の候、水仙の清楚な白が冬の庭を飾る頃です。", pattern:"水仙・松竹梅・宝尽くし"},
   ],
 };
-
 function getRandomSetsuki() {
   const curIdx = getTodaySetsuki();
   const base = SETSUKI_LIST[curIdx];
@@ -752,7 +859,12 @@ function AddForm({form,setForm,formSizes,setFormSizes,formSizeUnit,setFormSizeUn
   const isKimono=form.category==="着物";
   const isObi=form.category==="帯";
   const isObiAcc=form.category==="帯締め"||form.category==="帯揚げ"||form.category==="帯留";
+  const isKomono=form.category==="小物";
+  const isUwagi=form.category==="上着";
   const showPatternSelect=isKimono||isObi;
+  const showShitate=!isObiAcc&&!isKomono; // 着物・帯・上着のみ仕立て表示
+  const showPattern=!isObiAcc&&!isKomono&&form.category!=="帯留"; // 小物・帯まわり非表示
+  const showFabric=!isObiAcc&&!isKomono&&form.category!=="帯留"; // 小物・帯まわり非表示
   const currentPattern=KIMONO_PATTERNS.find(p=>p.name===form.pattern);
   const currentFabric=isObi
     ? OBI_FABRIC_DATA.find(f=>f.name===form.fabric)
@@ -781,8 +893,8 @@ function AddForm({form,setForm,formSizes,setFormSizes,formSizeUnit,setFormSizeUn
           {typeOpts.map(o=><option key={o}>{o}</option>)}
         </select>
       </div>
-      {/* 仕立て：着物・帯・上着のみ表示 */}
-      {!isObiAcc && (
+      {/* 仕立て：着物・帯・上着のみ表示（小物・帯まわりは非表示） */}
+      {showShitate && (
         <div style={{marginBottom:13}}>
           <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>仕立て</label>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -826,8 +938,8 @@ function AddForm({form,setForm,formSizes,setFormSizes,formSizeUnit,setFormSizeUn
         <input type="text" value={form.color||""} onChange={e=>setForm(f=>({...f,color:e.target.value}))} placeholder="例：藤色"
           style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${C.accent}`,fontSize:15,color:"#4a3020",boxSizing:"border-box"}}/>
       </div>
-      {/* 柄：帯留以外に表示 */}
-      {form.category !== "帯留" && (
+      {/* 柄：着物・帯のみ表示（小物・帯まわりは非表示） */}
+      {showPattern && (
         <div style={{marginBottom:13}}>
           <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>柄</label>
           {showPatternSelect ? (
@@ -849,8 +961,8 @@ function AddForm({form,setForm,formSizes,setFormSizes,formSizeUnit,setFormSizeUn
           )}
         </div>
       )}
-      {/* 生地：帯留・帯締め・帯揚げ以外に表示 */}
-      {form.category !== "帯留" && !isObiAcc && (
+      {/* 生地：着物・帯のみ表示（小物・帯まわりは非表示） */}
+      {showFabric && (
         <div style={{marginBottom:13}}>
           <label style={{fontSize:14,color:"#8b6a50",display:"block",marginBottom:4}}>{isObi?"帯地":"生地"}</label>
           {(isKimono||isObi) ? (

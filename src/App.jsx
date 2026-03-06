@@ -474,8 +474,8 @@ function getTodayFoods() {
   return shuffled.slice(0, 4).join("・");
 }
 
-const kujiToCm=v=>v?String(Math.round(parseFloat(v)*37.88/10*10)/10):"";
-const cmToKuji=v=>v?String(Math.round(parseFloat(v)/37.88*10*100)/100):"";
+const kujiToCm=v=>v?String(Math.round(parseFloat(v)*37.88*10)/10):"";
+const cmToKuji=v=>v?String(Math.round(parseFloat(v)/37.88*100)/100):"";
 function convertSize(val,from,to){if(!val||from===to)return val||"";return from==="鯨尺"?kujiToCm(val):cmToKuji(val);}
 
 // ── Supabaseストレージヘルパー ──────────────────────────────

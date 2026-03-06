@@ -1711,17 +1711,19 @@ export default function App() {
     });
 
     // 以降の認証変化を監視（ログイン・ログアウト時のみ）
-    const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=>{
-      if (!initialized) return; // 初回はgetSessionで処理済みなのでスキップ
-      const u = session?.user ?? null;
-      setUser(u);
-      // SIGNED_OUTのみリロード、SIGNED_INはgetSessionで処理済み
+const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=>{
+  // デバッグ用（後で消す）
+  alert("イベント: " + _event + "\nユーザー: " + (session?.user?.email ?? "なし") + "\ninitialized: " + initialized);
+  
+  if (!initialized) return;
+  const u = session?.user ?? null;
+  setUser(u);
   if (_event === "SIGNED_IN" || _event === "TOKEN_REFRESHED") {
-  loadData(u);
+    loadData(u);
   } else if (_event === "SIGNED_OUT") {
-  setItems([]); setSavedCoords([]); setWearHistory([]);
-}
-    });
+    setItems([]); setSavedCoords([]); setWearHistory([]);
+  }
+});
     return ()=>subscription.unsubscribe();
   },[]);
 

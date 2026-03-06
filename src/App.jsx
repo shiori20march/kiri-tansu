@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // ★ ここにSupabaseの情報を入力してください ★
 const SUPABASE_URL = "https://xastalujxwdklmfvoshn.supabase.co";
-const SUPABASE_ANON_KEY = "Ysb_publishable_ewBtLH5TY5DA_WZtUtQoow_hDNgVgsG";
+const SUPABASE_ANON_KEY = "sb_publishable_ewBtLH5TY5DA_WZtUtQoow_hDNgVgsG";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ITEM_CATEGORIES = ["着物","帯","帯締め","帯揚げ","帯留","小物","上着"];
@@ -767,27 +767,13 @@ function SelectWithTipModal({ title, groups, data, value, onChange, onClose }) {
 function SizeFields({category,sizes,setSizes,unit,setUnit}) {
   const fields=category==="着物"?KIMONO_SIZE_FIELDS:category==="帯"?OBI_SIZE_FIELDS:null;
   if(!fields) return null;
-
-  // unit切り替え時に既存の入力値をまとめて変換する
-  const handleUnitChange = (newUnit) => {
-    if (newUnit === unit) return;
-    const converted = {};
-    fields.forEach(f => {
-      if (sizes[f]) {
-        converted[f] = convertSize(sizes[f], unit, newUnit);
-      }
-    });
-    setSizes(p => ({ ...p, ...converted }));
-    setUnit(newUnit);
-  };
-
   return (
     <div style={{marginBottom:14}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <label style={{fontSize:15,color:"#8b6a50",fontWeight:"bold"}}>サイズ</label>
         <div style={{display:"flex",gap:4}}>
           {["cm","鯨尺"].map(u=>(
-            <button key={u} onClick={()=>handleUnitChange(u)} style={{padding:"4px 12px",borderRadius:12,border:"1px solid #c8a882",background:u===unit?"#8b5e3c":"transparent",color:u===unit?"#fff":"#7a4f2e",fontSize:13,cursor:"pointer"}}>{u}</button>
+            <button key={u} onClick={()=>setUnit(u)} style={{padding:"4px 12px",borderRadius:12,border:"1px solid #c8a882",background:u===unit?"#8b5e3c":"transparent",color:u===unit?"#fff":"#7a4f2e",fontSize:13,cursor:"pointer"}}>{u}</button>
           ))}
         </div>
       </div>

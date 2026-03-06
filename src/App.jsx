@@ -4,7 +4,15 @@ import { createClient } from "@supabase/supabase-js";
 // ★ ここにSupabaseの情報を入力してください ★
 const SUPABASE_URL = "https://xastalujxwdklmfvoshn.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ewBtLH5TY5DA_WZtUtQoow_hDNgVgsG";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    storageKey: "kimono-auth",
+    storage: window.localStorage,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  }
+});
 
 const ITEM_CATEGORIES = ["着物","帯","帯締め","帯揚げ","帯留","小物","上着"];
 const KIMONO_TYPES = ["振袖","訪問着","付け下げ","色無地","小紋","紬","浴衣","留袖","その他"];

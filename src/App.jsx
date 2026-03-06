@@ -781,7 +781,19 @@ function SizeFields({category,sizes,setSizes,unit,setUnit}) {
         <label style={{fontSize:15,color:"#8b6a50",fontWeight:"bold"}}>サイズ</label>
         <div style={{display:"flex",gap:4}}>
           {["cm","鯨尺"].map(u=>(
-            <button key={u} onClick={()=>setUnit(u)} style={{padding:"4px 12px",borderRadius:12,border:"1px solid #c8a882",background:u===unit?"#8b5e3c":"transparent",color:u===unit?"#fff":"#7a4f2e",fontSize:13,cursor:"pointer"}}>{u}</button>
+            <button key={u} 
+              onClick={()=>{
+  if(u===unit) return;
+  setSizes(prev=>{
+    const converted={};
+    Object.keys(prev).forEach(f=>{
+      converted[f] = convertSize(prev[f], unit, u);
+    });
+    return converted;
+  });
+  setUnit(u);
+}}
+              style={{padding:"4px 12px",borderRadius:12,border:"1px solid #c8a882",background:u===unit?"#8b5e3c":"transparent",color:u===unit?"#fff":"#7a4f2e",fontSize:13,cursor:"pointer"}}>{u}</button>
           ))}
         </div>
       </div>

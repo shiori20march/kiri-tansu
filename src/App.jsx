@@ -1716,9 +1716,11 @@ export default function App() {
       const u = session?.user ?? null;
       setUser(u);
       // SIGNED_OUTのみリロード、SIGNED_INはgetSessionで処理済み
-      if (_event === "SIGNED_OUT") {
-        setItems([]); setSavedCoords([]); setWearHistory([]);
-      }
+  if (_event === "SIGNED_IN" || _event === "TOKEN_REFRESHED") {
+  loadData(u);
+  } else if (_event === "SIGNED_OUT") {
+  setItems([]); setSavedCoords([]); setWearHistory([]);
+}
     });
     return ()=>subscription.unsubscribe();
   },[]);

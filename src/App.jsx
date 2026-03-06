@@ -1712,9 +1712,6 @@ export default function App() {
 
     // 以降の認証変化を監視（ログイン・ログアウト時のみ）
 const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=>{
-  // デバッグ用（後で消す）
-  alert("イベント: " + _event + "\nユーザー: " + (session?.user?.email ?? "なし") + "\ninitialized: " + initialized);
-  
   if (!initialized) return;
   const u = session?.user ?? null;
   setUser(u);

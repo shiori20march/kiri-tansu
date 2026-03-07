@@ -1498,13 +1498,13 @@ function TermsModal({onAgree}) {
   const years = Array.from({length:80}, (_,i)=>currentYear-i);
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:420,maxHeight:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <div style={{padding:"16px 20px",borderBottom:"1px solid #eddcc8",background:"#fdf6ee"}}>
+      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:420,height:"90vh",maxHeight:600,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{padding:"16px 20px",borderBottom:"1px solid #eddcc8",background:"#fdf6ee",flexShrink:0}}>
           <div style={{fontSize:18,fontWeight:"bold",color:"#7a4f2e",textAlign:"center"}}>👘 桐箪笥へようこそ</div>
           <div style={{fontSize:12,color:"#b89a7a",textAlign:"center",marginTop:4}}>ご利用前に利用規約をお読みください</div>
         </div>
         <div ref={ref} onScroll={handleScroll}
-          style={{flex:1,overflowY:"auto",padding:"16px 20px",fontSize:13,color:"#4a3020",lineHeight:1.8,whiteSpace:"pre-wrap"}}>
+          style={{flex:1,overflowY:"scroll",WebkitOverflowScrolling:"touch",padding:"16px 20px",fontSize:13,color:"#4a3020",lineHeight:1.8,whiteSpace:"pre-wrap",minHeight:0}}>
           {TERMS_TEXT}
         </div>
         {!scrolled && (
@@ -1619,23 +1619,32 @@ function NewPostModal({onClose, onSubmit, todayPostCount}) {
   const [photo, setPhoto] = useState(null);
   const [comment, setComment] = useState("");
   const [cropSrc, setCropSrc] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const ref = useRef();
   const remaining = 3 - todayPostCount;
+
+  const handleSubmit = async () => {
+    if (!photo || remaining <= 0 || submitting) return;
+    setSubmitting(true);
+    await onSubmit(photo, comment);
+    setSubmitting(false);
+  };
+
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={submitting ? undefined : onClose}>
       <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:420,padding:20}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div style={{fontWeight:"bold",fontSize:16,color:"#7a4f2e"}}>📸 着姿を投稿</div>
-          <button onClick={onClose} style={{border:"none",background:"transparent",fontSize:22,cursor:"pointer",color:"#b89a7a"}}>✕</button>
+          <button onClick={submitting ? undefined : onClose} style={{border:"none",background:"transparent",fontSize:22,cursor:submitting?"not-allowed":"pointer",color:"#b89a7a"}}>✕</button>
         </div>
         <div style={{fontSize:12,color:"#b89a7a",marginBottom:12}}>本日あと{remaining}件投稿できます</div>
         <PhotoUpload value={photo} onChange={v=>setPhoto(v)}/>
         <textarea value={comment} onChange={e=>setComment(e.target.value)}
           placeholder="コメントを添えてください（任意）"
           style={{width:"100%",padding:"10px",borderRadius:8,border:"1px solid #c8a882",fontSize:14,minHeight:80,resize:"vertical",boxSizing:"border-box",marginTop:12,marginBottom:12}}/>
-        <button onClick={()=>photo&&onSubmit(photo,comment)} disabled={!photo||remaining<=0}
-          style={{width:"100%",padding:12,background:photo&&remaining>0?"#8b5e3c":"#ccc",color:"#fff",border:"none",borderRadius:10,fontSize:15,fontWeight:"bold",cursor:photo&&remaining>0?"pointer":"not-allowed"}}>
-          {remaining<=0?"本日の投稿上限に達しました":"投稿する"}
+        <button onClick={handleSubmit} disabled={!photo || remaining<=0 || submitting}
+          style={{width:"100%",padding:12,background:photo&&remaining>0&&!submitting?"#8b5e3c":"#ccc",color:"#fff",border:"none",borderRadius:10,fontSize:15,fontWeight:"bold",cursor:photo&&remaining>0&&!submitting?"pointer":"not-allowed"}}>
+          {submitting ? "投稿中…" : remaining<=0 ? "本日の投稿上限に達しました" : "投稿する"}
         </button>
       </div>
       {cropSrc&&<Cropper src={cropSrc} onDone={d=>{setPhoto(d);setCropSrc(null);}} onCancel={()=>setCropSrc(null)}/>}
@@ -1788,11 +1797,33 @@ const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=
 
   const handleSubmitPost = async (photo, comment) => {
     if(getTodayPostCount()>=3) { alert("本日の投稿上限（3件）に達しました"); return; }
-    const {error} = await supabase.from("posts").insert({
-      user_id: user.id, photo, comment
-    });
-    if(!error) { await loadPosts(); setShowPostModal(false); }
-    else alert("投稿に失敗しました");
+    try {
+      // Base64をBlobに変換してStorageへアップロード
+      let photoUrl = null;
+      if (photo) {
+        const res = await fetch(photo);
+        const blob = await res.blob();
+        const ext = blob.type === "image/png" ? "png" : "jpg";
+        const fileName = `${user.id}_${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("post-photos")
+          .upload(fileName, blob, { contentType: blob.type, upsert: false });
+        if (upErr) throw upErr;
+        const { data: urlData } = supabase.storage
+          .from("post-photos")
+          .getPublicUrl(fileName);
+        photoUrl = urlData?.publicUrl || null;
+      }
+      const { error } = await supabase.from("posts").insert({
+        user_id: user.id, photo: photoUrl, comment
+      });
+      if (error) throw error;
+      await loadPosts();
+      setShowPostModal(false);
+    } catch(e) {
+      console.error("投稿エラー:", e);
+      alert("投稿に失敗しました。もう一度お試しください。");
+    }
   };
 
   const handleReact = async (postId, emoji) => {

@@ -1822,7 +1822,7 @@ const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=
       setShowPostModal(false);
     } catch(e) {
       console.error("投稿エラー:", e);
-      alert("投稿に失敗しました。もう一度お試しください。");
+      alert("投稿エラー: " + (e?.message || e?.error_description || JSON.stringify(e)));
     }
   };
 

@@ -1784,7 +1784,7 @@ const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=
   const loadPosts = async () => {
     const {data,error} = await supabase
       .from("posts")
-      .select("*, reactions(*), profiles!posts_user_id_fkey(display_name)")
+      .select("*, reactions!reactions_post_id_fkey(*), profiles!posts_user_id_fkey(display_name)")
       .order("created_at",{ascending:false})
       .limit(50);
     if(!error) setPosts(data||[]);

@@ -1787,8 +1787,6 @@ const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=
       .select("*, reactions(*), profiles(display_name)")
       .order("created_at",{ascending:false})
       .limit(50);
-    console.log("loadPosts結果:", data, "エラー:", error);
-    alert("loadPosts: data=" + JSON.stringify(data?.length) + " error=" + JSON.stringify(error?.message));
     if(!error) setPosts(data||[]);
   };
 
@@ -1798,35 +1796,29 @@ const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=
   };
 
   const handleSubmitPost = async (photo, comment) => {
-    if(getTodayPostCount()>=3) { alert("本日の投稿上限（3件）に達しました"); return; }
+    if(getTodayPostCount()>=3) { alert("limit reached"); return; }
     try {
       let photoUrl = null;
       if (photo) {
-        alert("STEP1: Storageアップロード開始");
         const res = await fetch(photo);
         const blob = await res.blob();
-        alert("STEP2: blob size=" + blob.size + " type=" + blob.type);
         const ext = blob.type === "image/png" ? "png" : "jpg";
         const fileName = `${user.id}_${Date.now()}.${ext}`;
-        const { data: upData, error: upErr } = await supabase.storage
+        const { error: upErr } = await supabase.storage
           .from("post-photos")
           .upload(fileName, blob, { contentType: blob.type, upsert: false });
-        if (upErr) { alert("Storage失敗: " + upErr.message); throw upErr; }
-        alert("STEP3: Storage成功 path=" + upData?.path);
+        if (upErr) throw upErr;
         const { data: urlData } = supabase.storage.from("post-photos").getPublicUrl(fileName);
         photoUrl = urlData?.publicUrl || null;
-        alert("STEP4: URL=" + photoUrl);
       }
-      alert("STEP5: DBにinsert開始");
-      const { data: insertData, error } = await supabase.from("posts").insert({
+      const { error } = await supabase.from("posts").insert({
         user_id: user.id, photo: photoUrl, comment
-      }).select();
-      alert("STEP6: insert結果 data=" + JSON.stringify(insertData) + " error=" + JSON.stringify(error?.message));
+      });
       if (error) throw error;
       await loadPosts();
       setShowPostModal(false);
     } catch(e) {
-      alert("投稿エラー: " + (e?.message || JSON.stringify(e)));
+      alert("error: " + (e?.message || JSON.stringify(e)));
     }
   };
 

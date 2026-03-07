@@ -1782,12 +1782,27 @@ const {data:{subscription}} = supabase.auth.onAuthStateChange((_event, session)=
 
   // ── 投稿関連 ──
   const loadPosts = async () => {
-    const {data,error} = await supabase
+    const {data: postsData, error: postsError} = await supabase
       .from("posts")
-      .select("*, reactions!reactions_post_id_fkey(*), profiles!posts_user_id_fkey(display_name)")
+      .select("*")
       .order("created_at",{ascending:false})
       .limit(50);
-    if(!error) setPosts(data||[]);
+    if(postsError || !postsData) return;
+
+    const postIds = postsData.map(p => p.id);
+    const userIds = [...new Set(postsData.map(p => p.user_id))];
+
+    const [{data: reactionsData}, {data: profilesData}] = await Promise.all([
+      supabase.from("reactions").select("*").in("post_id", postIds),
+      supabase.from("profiles").select("id, display_name").in("id", userIds),
+    ]);
+
+    const merged = postsData.map(post => ({
+      ...post,
+      reactions: (reactionsData||[]).filter(r => r.post_id === post.id),
+      profiles: profilesData?.find(pr => pr.id === post.user_id) || null,
+    }));
+    setPosts(merged);
   };
 
   const getTodayPostCount = () => {
